@@ -1,9 +1,9 @@
-import { BufferWrapper } from '../utils/buffer-wrapper';
+import { BufferTraverser } from '../utils/buffer-wrapper';
 import { iadd, imul, isub } from '../utils/integer-arithmetic';
 import { decompress } from './decompress';
 
 export function convertCps2Prt(inp: Buffer): Buffer {
-   const inb = new BufferWrapper(inp);
+   const inb = new BufferTraverser(inp);
 
    const magic = inb.readRawASCII(4);
    if (magic !== 'CPS\0')
@@ -19,7 +19,7 @@ export function convertCps2Prt(inp: Buffer): Buffer {
    const size_orig = inb.readUInt32();
 
    const outLen = size_comp - 16 - 4;
-   const outStream = new BufferWrapper(Buffer.from(inb.subArray(outLen)));
+   const outStream = new BufferTraverser(Buffer.from(inb.subArray(outLen)));
 
    const offset = isub(inb.readUInt32(), 0x7534682) >>> 0;
    if (offset !== 0)
@@ -32,8 +32,8 @@ export function convertCps2Prt(inp: Buffer): Buffer {
 }
 
 function decryptCPSInPlace(input: Buffer, size_comp: number, offset: number): void {
-   const inputStream = new BufferWrapper(input);
-   const outputStream = new BufferWrapper(input);
+   const inputStream = new BufferTraverser(input);
+   const outputStream = new BufferTraverser(input);
 
    const realOffset = isub(offset, 16);
    inputStream.pos = realOffset;

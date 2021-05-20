@@ -1,7 +1,7 @@
-import { BufferWrapper } from '../utils/buffer-wrapper';
+import { BufferTraverser } from '../utils/buffer-wrapper';
 
 export function decompress(inp: Buffer, _uncompressedLength = 0): Buffer {
-   const din = new BufferWrapper(inp);
+   const din = new BufferTraverser(inp);
    let uncompressedLength: number;
    if (_uncompressedLength === 0) {
       const magic = din.readRawASCII(4);
@@ -13,7 +13,7 @@ export function decompress(inp: Buffer, _uncompressedLength = 0): Buffer {
    } else {
       uncompressedLength = _uncompressedLength;
    }
-   const out = new BufferWrapper(Buffer.allocUnsafe(uncompressedLength));
+   const out = new BufferTraverser(Buffer.allocUnsafe(uncompressedLength));
    let w = 0;
    while (w < uncompressedLength) {
       let b = din.readByte();

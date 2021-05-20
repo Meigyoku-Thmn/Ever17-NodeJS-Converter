@@ -1,12 +1,12 @@
 import { spawn } from 'child_process';
 import { Writable } from 'stream';
-import { BufferWrapper } from '../utils/buffer-wrapper';
+import { BufferTraverser } from '../utils/buffer-wrapper';
 import { idiv } from '../utils/integer-arithmetic';
 
 type Metadata = { xCoord: number; yCoord: number; };
 
 export async function writePrt2PngFile(outputPath: string, buf: Buffer): Promise<Metadata> {
-   const input = new BufferWrapper(buf);
+   const input = new BufferTraverser(buf);
 
    const magic = input.readRawASCII(4);
    if (magic !== 'PRT\0')
@@ -16,7 +16,7 @@ export async function writePrt2PngFile(outputPath: string, buf: Buffer): Promise
    if (version !== 0x66 && version !== 0x65)
       throw Error(`Unsupported version 0x${version.toString(16)} of PRT.`);
 
-   const bitDepth = input.readUInt16();
+   let bitDepth = input.readUInt16();
    const paletteOffset = input.readUInt16();
    const dataOffset = input.readUInt16();
    let width = input.readUInt16();
@@ -34,57 +34,63 @@ export async function writePrt2PngFile(outputPath: string, buf: Buffer): Promise
       if (width2 !== 0) width = width2;
       if (height2 !== 0) height = height2;
    }
-   const widthByte = width * bitDepth / 8;
-   const stride = idiv((widthByte + 3), 4) * 4;
+
+   let widthByte: number;
+   let stride: number;
+   function calculateStride() {
+      widthByte = width * bitDepth / 8;
+      stride = idiv((widthByte + 3), 4) * 4;
+   }
+   calculateStride();
 
    let palette: Buffer;
    if (bitDepth === 8) {
       input.pos = paletteOffset;
-      palette = Buffer.from(input.subArray(256 * 4));
-      for (let i = 0; i < 256; i++)
-         palette[i * 4 + 3] = 0xFF;
+      palette = input.subArray(256 * 4);
    }
 
    input.pos = dataOffset;
-   const data = input.subArray(stride * height);
+   let data = input.subArray(stride * height);
 
    let alpha: Buffer;
    if (hasAlpha)
       alpha = input.subArray(width * height);
 
-   const pix_fmt =
-      bitDepth === 8 ? 'pal8' :
-         bitDepth === 24 ? 'bgr24' :
-            bitDepth === 32 ? 'bgra24' : 'invalid';
+   if (bitDepth === 8) {
+      const flattenData = new BufferTraverser(Buffer.allocUnsafe(width * height * 3));
+      for (const idx of data)
+         flattenData.writeBytes(palette.subarray(idx * 4, idx * 4 + 3));
+      data = flattenData.buffer;
+      bitDepth = 24;
+      calculateStride();
+   }
+
+   const format =
+      bitDepth === 8 ? 'bgr' :
+         bitDepth === 24 ? 'bgr' :
+            bitDepth === 32 ? 'bgra' : 'invalid';
 
    await new Promise((resolve, reject) => {
-      const ffmpeg = spawn('ffmpeg', [
-         '-hide_banner -loglevel error -y',
-         '-f rawvideo',
-         `-video_size ${width}x${height} -pix_fmt ${pix_fmt}`,
-         '-i -', // input from stdin
+      const ffmpeg = spawn('magick', [
+         `-size ${width}x${height} -depth 8`,
+         `${format}:fd:0`, // input from stdin
          ...(hasAlpha ? [
-            '-f rawvideo',
-            `-video_size ${width}x${height} -pix_fmt gray`,
-            '-i pipe:3', // additional pipe input for alpha mask
+            `-size ${width}x${height} -depth 8`,
+            'gray:fd:3', // additional pipe input for alpha mask
+            '-compose copy-opacity -composite'
          ] : []),
-         hasAlpha
-            ? '-filter_complex "[0] vflip [b]; [b][1] alphamerge"'
-            : '-vf "vflip"',
          `"${outputPath}"`,
       ], {
-         stdio: ['pipe', 'inherit', 'inherit', 'pipe', hasAlpha ? 'pipe' : null],
+         stdio: ['pipe', 'inherit', 'inherit', hasAlpha ? 'pipe' : null],
          windowsVerbatimArguments: true
       });
 
       ffmpeg.on('exit', code => code !== 0
-         ? reject(Error(`ffmpeg has exited with code ${code}`)) : resolve(null));
+         ? reject(Error(`magick has exited with code ${code}`)) : resolve(null));
       ffmpeg.on('error', error => reject(error));
-      if (stride === widthByte)
-         ffmpeg.stdin.write(data);
-      else for (let i = 0; i < height; i++)
+      for (let i = height - 1; i >= 0; i--)
          ffmpeg.stdin.write(data.subarray(stride * i, stride * i + widthByte));
-      ffmpeg.stdin.end(palette);
+      ffmpeg.stdin.end();
       if (hasAlpha)
          (ffmpeg.stdio[3] as Writable).end(alpha);
    });

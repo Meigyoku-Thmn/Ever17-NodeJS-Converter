@@ -1,4 +1,4 @@
-export class BufferWrapper {
+export class BufferTraverser {
    pos = 0;
    buffer: Buffer;
    constructor(buffer: Buffer) {

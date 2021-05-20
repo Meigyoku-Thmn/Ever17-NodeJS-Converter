@@ -6,13 +6,18 @@ import { decryptInPlace } from './internal/decrypt';
 import { decompress } from './internal/decompress';
 import { convertWaf2Wav } from './internal/waf';
 import { convertCps2Prt } from './internal/cps';
-import { writePrt2PngFile } from './internal/ffmpeg';
+import { writePrt2PngFile as ffmpegWritePrt2PngFile } from './internal/ffmpeg';
+import { writePrt2PngFile as magickWritePrt2PngFile} from './internal/imagemagick';
+import { DEBUG_RECORD_NAME, DEBUG_DAT_FILES } from './debug';
+
+const _DEBUG_RECORD_NAME = DEBUG_RECORD_NAME?.trim() ?? '';
+const _DEBUG_DAT_FILES = DEBUG_DAT_FILES ?? [];
 
 const MyName = path.basename(__filename, '.ts');
 
 const SCRIPT_DAT = 'script.dat';
 
-const DAT_FILES = [
+let DAT_FILES = [
    'bg.dat',
    'bgm.dat',
    'chara.dat',
@@ -25,8 +30,8 @@ const DAT_FILES = [
    'wallpaper.dat'
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const DEBUG_RECORD_NAME: string = null;
+if (_DEBUG_DAT_FILES.length > 0)
+   DAT_FILES = _DEBUG_DAT_FILES;
 
 const LNK_HEADER_SIZE = 16;
 const LNK_INDEX_SIZE = 32;
@@ -98,7 +103,7 @@ let currentFileName: string;
          console.log(`Extracting ${datFileName}:`);
          let metaDirCreated = false;
          for (const index of indexes) {
-            if (DEBUG_RECORD_NAME && DEBUG_RECORD_NAME !== index.name)
+            if (_DEBUG_RECORD_NAME.length > 0 && _DEBUG_RECORD_NAME !== index.name)
                continue;
             currentIndex = index;
             console.log(`- ${index.name}`);
@@ -122,7 +127,8 @@ let currentFileName: string;
                data = convertCps2Prt(data);
                const outputName = path.basename(index.name, '.cps') + '.png';
                const outputPath = path.join(localOutputDir, outputName);
-               const meta = await writePrt2PngFile(outputPath, data);
+               const meta = await ffmpegWritePrt2PngFile(outputPath, data);
+               // const meta = await magickWritePrt2PngFile(outputPath, data);
                if (meta != null) {
                   if (!metaDirCreated) {
                      fs.mkdirSync(metaOutputDir, { recursive: true });

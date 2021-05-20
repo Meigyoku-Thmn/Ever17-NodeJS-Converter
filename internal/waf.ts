@@ -1,7 +1,7 @@
-import { BufferWrapper } from '../utils/buffer-wrapper';
+import { BufferTraverser } from '../utils/buffer-wrapper';
 
 export function convertWaf2Wav(inp: Buffer): Buffer {
-   const inb = new BufferWrapper(inp);
+   const inb = new BufferTraverser(inp);
    const magic = inb.readRawASCII(4);
    if (magic !== 'WAF\0')
       throw Error(`Invalid magic code "${magic}", expected "WAF\\0".`);
@@ -27,7 +27,7 @@ export function convertWaf2Wav(inp: Buffer): Buffer {
 
    const outLen = 78 + samplesSize;
 
-   const outB = new BufferWrapper(Buffer.allocUnsafe(outLen));
+   const outB = new BufferTraverser(Buffer.allocUnsafe(outLen));
    riffSize = outLen - 8;
 
    outB.writeRawASCII(riffMagic);
