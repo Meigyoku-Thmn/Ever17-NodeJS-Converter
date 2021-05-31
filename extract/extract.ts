@@ -2,13 +2,13 @@ import yargs from 'yargs';
 import path from 'path';
 import fs from 'fs';
 import { File, BinaryReader, SeekOrigin } from 'csbinary';
-import { decryptInPlace } from './internal/decrypt';
-import { decompress } from './internal/decompress';
-import { convertWaf2Wav } from './internal/waf';
-import { convertCps2Prt } from './internal/cps';
-import { writePrt2PngFile as ffmpegWritePrt2PngFile } from './internal/ffmpeg';
-import { writePrt2PngFile as magickWritePrt2PngFile} from './internal/imagemagick';
-import { DEBUG_RECORD_NAME, DEBUG_DAT_FILES } from './debug';
+import { decryptInPlace } from './decrypt';
+import { decompress } from './decompress';
+import { convertWaf2Wav } from './waf';
+import { convertCps2Prt } from './cps';
+import { writePrt2PngFile as ffmpegWritePrt2PngFile } from './ffmpeg';
+import { writePrt2PngFile as magickWritePrt2PngFile } from './imagemagick';
+import { DEBUG_RECORD_NAME, DEBUG_DAT_FILES } from '../debug';
 
 const _DEBUG_RECORD_NAME = DEBUG_RECORD_NAME?.trim() ?? '';
 const _DEBUG_DAT_FILES = DEBUG_DAT_FILES ?? [];
@@ -45,7 +45,7 @@ const argv = yargs
    .scriptName(MyName)
    .alias('h', 'help')
    .hide('version')
-   .usage('Usage: $0 -i <input_dir> -o <output_dir>')
+   .usage('Usage: $0 -i <input_dir> -o <output_dir> [--magick]')
    .option('i', {
       alias: 'input',
       describe: 'The Ever17\'s installation directory path.',
@@ -60,11 +60,17 @@ const argv = yargs
       type: 'string',
       nargs: 1,
    })
+   .option('magick', {
+      describe: 'Use ImageMagick to encode images (default is ffmpeg).',
+      type: 'boolean',
+   })
    .example('$0 -i "C:/Program Files/Ever17" -o "C:/ExtractedData"', '')
    .argv;
 
 const inputDir = argv.i;
 const outputDir = argv.o;
+
+const useImageMagick = argv.magick ? true : false;
 
 let currentIndex: LNK_Index;
 let currentFileName: string;
@@ -127,8 +133,9 @@ let currentFileName: string;
                data = convertCps2Prt(data);
                const outputName = path.basename(index.name, '.cps') + '.png';
                const outputPath = path.join(localOutputDir, outputName);
-               const meta = await ffmpegWritePrt2PngFile(outputPath, data);
-               // const meta = await magickWritePrt2PngFile(outputPath, data);
+               const meta = useImageMagick
+                  ? await magickWritePrt2PngFile(outputPath, data)
+                  : await ffmpegWritePrt2PngFile(outputPath, data);
                if (meta != null) {
                   if (!metaDirCreated) {
                      fs.mkdirSync(metaOutputDir, { recursive: true });

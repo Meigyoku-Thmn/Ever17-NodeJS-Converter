@@ -1,8 +1,14 @@
+/**
+ * This class has mutable internal state.
+ */
 export class BufferTraverser {
    pos = 0;
    buffer: Buffer;
    constructor(buffer: Buffer) {
       this.buffer = buffer;
+   }
+   atEOF(): boolean {
+      return this.pos >= this.buffer.length;
    }
    readUInt16(): number {
       const rs = this.buffer.readUInt16LE(this.pos);

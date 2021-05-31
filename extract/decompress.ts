@@ -69,7 +69,7 @@ export function decompress(inp: Buffer, _uncompressedLength = 0): Buffer {
          }
       }
    }
-   if (out.pos < out.buffer.length)
+   if (out.atEOF())
       throw Error('Something wrong');
    return out.buffer;
 }
