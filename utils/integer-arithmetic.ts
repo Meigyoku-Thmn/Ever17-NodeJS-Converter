@@ -15,8 +15,8 @@ function mul(a: number, b: number, mask: number) {
 
 function div(a: number, b: number, mask: number) {
    a = +a; b = +b;
-   if (!Number.isFinite(a)) throw Error('Expected finite number, got a =' + a);
-   if (!Number.isFinite(b)) throw Error('Expected finite number, got b =' + b);
+   if (!Number.isFinite(a)) throw TypeError('Expected finite number, got a =' + a);
+   if (!Number.isFinite(b)) throw TypeError('Expected finite number, got b =' + b);
    if (b === 0) throw Error('Division by zero.');
    return ((a & mask) / (b & mask)) & mask;
 }

@@ -2,10 +2,10 @@ import yargs from 'yargs';
 import path from 'path';
 import fs from 'fs';
 import { File, BinaryReader, SeekOrigin } from 'csbinary';
-import { parseOpcodes } from './opcode';
+import { parseOpcodes } from './parse-opcode';
 import { dumpCode } from './dump-code';
 import { dumpRenPyScript, dumpScript } from './dump-script';
-
+import { printError } from '../utils/error';
 import { DEBUG_SCR_FILES } from '../debug/';
 
 let _DEBUG_SCR_FILES = DEBUG_SCR_FILES ?? [];
@@ -71,7 +71,7 @@ let currentFileName: string;
             throw Error(`Invalid magic code "${magic}", expected "SC3\\0".`);
 
          const textualScriptOffset = input.readUInt32();
-         const backgroundOffset = input.readUInt32();
+         const imageOffset = input.readUInt32();
 
          const [nLabel, firstLabel] = (() => {
             const startOffset = input.readUInt32();
@@ -88,24 +88,24 @@ let currentFileName: string;
          if (textualScriptOffset >= fileSize)
             continue;
 
-         const nTextualIndex = (backgroundOffset - textualScriptOffset) / 4;
+         const nTextualIndex = (imageOffset - textualScriptOffset) / 4;
          const textualIndexes: number[] = [];
          for (let i = 0; i < nTextualIndex; i++)
             textualIndexes.push(input.readUInt32());
 
-         const nBackgroundIndex = (textualIndexes[0] - backgroundOffset) / 4;
-         const backgroundIndexes = [];
-         for (let i = 0; i < nBackgroundIndex; i++)
-            backgroundIndexes.push(input.readUInt32());
+         const nImageIndex = (textualIndexes[0] - imageOffset) / 4;
+         const imageIndexes = [];
+         for (let i = 0; i < nImageIndex; i++)
+            imageIndexes.push(input.readUInt32());
 
-         const textualBytecodes = input.readBytes(backgroundIndexes[0] - textualIndexes[0]);
+         const textualBytecodes = input.readBytes(imageIndexes[0] - textualIndexes[0]);
 
-         const backgroundNames = input.readRawString(fileSize - backgroundIndexes[0])
+         const imageNames = input.readRawString(fileSize - imageIndexes[0])
             .split('\0')
             .filter(e => e.length > 0);
 
          const opcodes = parseOpcodes({
-            bytecodes, pos: labels[0], textualIndexes, textualBytecodes, backgroundNames,
+            bytecodes, pos: labels[0], textualIndexes, textualBytecodes, imageNames
          });
 
          fs.mkdirSync(outputDir, { recursive: true });
@@ -116,6 +116,6 @@ let currentFileName: string;
       }
    } catch (err) {
       console.error(`Error occured in file ${currentFileName}:`);
-      console.error(err);
+      printError(err);
    }
 })();

@@ -20,6 +20,16 @@ export class BufferTraverser {
       this.pos += 4;
       return rs;
    }
+   readCASCII(): string {
+      let val: number;
+      let rs = '';
+      while ((val = this.buffer.readUInt8(this.pos))) {
+         this.pos++;
+         rs += String.fromCharCode(val);
+      }
+      this.pos++;
+      return rs;
+   }
    readRawASCII(length: number): string {
       const rs = this.buffer.subarray(this.pos, this.pos + length).toString('ascii');
       this.pos += length;
