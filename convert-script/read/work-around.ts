@@ -1,4 +1,4 @@
-import { BufferTraverser } from '../utils/buffer-wrapper';
+import { BufferTraverser } from '../../utils/buffer-wrapper';
 import { readExpression } from './read-expression';
 
 export function goAroundSpecialGotoIf(reader: BufferTraverser): boolean {

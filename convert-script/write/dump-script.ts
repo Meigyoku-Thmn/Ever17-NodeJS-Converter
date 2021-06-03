@@ -1,4 +1,4 @@
-import { OpcodeInfo } from './parse-opcode';
+import { OpcodeInfo } from '../opcode';
 
 export function dumpScript(opcodes: OpcodeInfo[], outputPath: string): void {
    return;

@@ -7,6 +7,7 @@
    "author": "",
    "license": "ISC",
    "dependencies": {
+      "@meigyokuthmn/iconv-lite": "npm:@meigyokuthmn/iconv-lite@^0.7.0-pre",
       "csbinary": "^2.1.4",
       "yargs": "^17.0.1"
    },

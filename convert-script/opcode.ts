@@ -1,5 +1,39 @@
+import { Expression } from './expression';
+
+export class OpcodeInfo {
+   position: number;
+   bytecodes: Buffer;
+   type: OpcodeType;
+   code: MetaOpcode | Opcode;
+   expressions: Expression[] = [];
+   switches: [Expression, Expression][] = [];
+   textualOpcodeInfos: TextualOpcodeInfo[] = [];
+
+   constructor(initialObj?: Partial<OpcodeInfo>) {
+      return Object.assign(this, initialObj);
+   }
+}
+
+export class TextualOpcodeInfo {
+   position: number;
+   bytecodes: Buffer;
+   type: TextualOpcodeType;
+   code: TextualOpcode;
+   expressions: Expression[] = [];
+   choices: [Expression, string][] = [];
+   text = '';
+
+   constructor(initialObj?: Partial<TextualOpcodeInfo>) {
+      return Object.assign(this, initialObj);
+   }
+}
+
 export const enum OpcodeType {
    MetaOpcode, Opcode, Unknown,
+}
+
+export const enum TextualOpcodeType {
+   Text, Command, Unknown,
 }
 
 export const enum MetaOpcode {
@@ -71,4 +105,29 @@ const _Opcode = eval('Opcode');
 
 export function OpcodeName(value: Opcode): string {
    return _Opcode[value];
+}
+
+export const enum TextualOpcode {
+   End = 0x00,
+   PutNewLine = 0x01,
+   WaitInteraction = 0x02,
+   ClearText = 0x03,
+   Delay = 0x04,
+   AppendText = 0x05,
+   OpenChoiceBox = 0x0b,
+   WaitVoice = 0x0c,
+   PlayVoice = 0x0d,
+   Mark = 0x0e,
+   ToNextPage = 0x10,
+   MarkBigChar = 0x11,
+}
+
+const _TextualOpcode = eval('TextualOpcode');
+
+export function isTextualOpcode(byteCode: number): boolean {
+   return _TextualOpcode[byteCode] != null;
+}
+
+export function TextualOpcodeName(value: Opcode): string {
+   return _TextualOpcode[value];
 }

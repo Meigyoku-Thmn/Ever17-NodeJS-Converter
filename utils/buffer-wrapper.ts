@@ -20,10 +20,10 @@ export class BufferTraverser {
       this.pos += 4;
       return rs;
    }
-   readCASCII(): string {
+   readCASCII(terminatingValue = 0): string {
       let val: number;
       let rs = '';
-      while ((val = this.buffer.readUInt8(this.pos))) {
+      while ((val = this.buffer.readUInt8(this.pos)) !== terminatingValue) {
          this.pos++;
          rs += String.fromCharCode(val);
       }

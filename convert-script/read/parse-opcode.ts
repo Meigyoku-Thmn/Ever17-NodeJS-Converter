@@ -1,26 +1,11 @@
-import { BufferTraverser } from '../utils/buffer-wrapper';
-import {
-   Expression, ExpressionType, readCStringExpr, readExpression, readRawByteExpr, readRawInt16Expr
-} from './read-expression';
-import { MetaOpcode, MetaOpcodeName, Opcode, OpcodeName, OpcodeType } from './opcode';
-import { parseTextualOpcodes, TextualOpcodeInfo } from './parse-textual-opcode';
+import { BufferTraverser } from '../../utils/buffer-wrapper';
+import { readCStringExpr, readExpression, readRawByteExpr, readRawInt16Expr } from './read-expression';
+import { MetaOpcode, MetaOpcodeName, Opcode, OpcodeInfo, OpcodeName, OpcodeType } from '../opcode';
+import { parseTextualOpcodes } from './parse-textual-opcode';
 import { skipMarker, skipPadding } from './skip-padding';
-import { addContext } from '../utils/error';
+import { addContext } from '../../utils/error';
 import { goAroundSpecialGotoIf } from './work-around';
-
-export class OpcodeInfo {
-   position: number;
-   bytecodes: Buffer;
-   type: OpcodeType;
-   code: MetaOpcode | Opcode;
-   expressions: Expression[] = [];
-   switches: [Expression, Expression][] = [];
-   textualOpcodeInfos: TextualOpcodeInfo[] = [];
-
-   constructor(initialObj?: Partial<OpcodeInfo>) {
-      return Object.assign(this, initialObj);
-   }
-}
+import { ExpressionType } from '../expression';
 
 type Params = {
    bytecodes: Buffer,
@@ -53,15 +38,14 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
             case MetaOpcode.VarOp:
                opcodeInfo.expressions.push(
                   readExpression(reader, 'left operand'),
-                  readExpression(reader, 'assigment operator'),
+                  readExpression(reader, 'assigment operator', true, 1),
                );
-               skipPadding(reader, 1);
                opcodeInfo.expressions.push(
                   readExpression(reader, 'right operand'),
                );
-               if ((opcodeInfo.expressions[2] as Expression).type === ExpressionType.Variable)
+               if (opcodeInfo.expressions[2].type === ExpressionType.Variable)
                   skipPadding(reader, 1);
-               else if ((opcodeInfo.expressions[2] as Expression).type !== ExpressionType.Config)
+               else if (opcodeInfo.expressions[2].type !== ExpressionType.Config)
                   skipPadding(reader, 2);
                break;
             case MetaOpcode.Command:
@@ -97,8 +81,7 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
                );
                break;
             case MetaOpcode.Switch: {
-               opcodeInfo.expressions.push(readExpression(reader, 'expression to test'));
-               skipPadding(reader, 1);
+               opcodeInfo.expressions.push(readExpression(reader, 'expression to test', true, 1));
                let marker = skipMarker(reader, 2, 0x2700);
                opcodeInfo.switches = [];
                while (marker === 0x2700) {

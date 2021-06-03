@@ -1,4 +1,4 @@
-import { BufferTraverser } from '../utils/buffer-wrapper';
+import { BufferTraverser } from '../../utils/buffer-wrapper';
 
 export function skipPadding(reader: BufferTraverser, count: 1 | 2 | 4): void {
    const pos = reader.pos;

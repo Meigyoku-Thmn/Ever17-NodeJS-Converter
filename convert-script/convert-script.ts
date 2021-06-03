@@ -2,9 +2,9 @@ import yargs from 'yargs';
 import path from 'path';
 import fs from 'fs';
 import { File, BinaryReader, SeekOrigin } from 'csbinary';
-import { parseOpcodes } from './parse-opcode';
-import { dumpCode } from './dump-code';
-import { dumpRenPyScript, dumpScript } from './dump-script';
+import { parseOpcodes } from './read/parse-opcode';
+import { dumpCode } from './write/dump-code';
+import { dumpRenPyScript, dumpScript } from './write/dump-script';
 import { printError } from '../utils/error';
 import { DEBUG_SCR_FILES } from '../debug/';
 
