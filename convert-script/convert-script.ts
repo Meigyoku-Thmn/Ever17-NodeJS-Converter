@@ -52,6 +52,7 @@ let currentFileName: string;
 
 (async function () {
    try {
+      console.time(MyName);
       const fileNames = _DEBUG_SCR_FILES ?? fs.readdirSync(inputDir).filter(e => e.endsWith('.scr'));
       for (const fileName of fileNames) {
          console.log(`Converting ${fileName}`);
@@ -114,6 +115,7 @@ let currentFileName: string;
          dumpScript(opcodes, basename + '.txt');
          dumpRenPyScript(opcodes, basename + '.txt');
       }
+      console.timeEnd(MyName);
    } catch (err) {
       console.error(`Error occured in file ${currentFileName}:`);
       printError(err);

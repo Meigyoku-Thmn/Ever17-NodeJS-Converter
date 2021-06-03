@@ -1,9 +1,10 @@
 export const enum OpcodeType {
-   MetaOpcode, Opcode
+   MetaOpcode, Opcode, Unknown,
 }
 
 export const enum MetaOpcode {
    NoOp = 0x00,
+   Goto = 0x07,
    GotoIf = 0x0a,
    Switch = 0x26,
    CallText = 0xff,

@@ -1,9 +1,12 @@
 import { BufferTraverser } from '../utils/buffer-wrapper';
-import { Expression, ExpressionType, readCStringExpr, readExpression, readRawByteExpr, readRawInt16Expr } from './read-expression';
+import {
+   Expression, ExpressionType, readCStringExpr, readExpression, readRawByteExpr, readRawInt16Expr
+} from './read-expression';
 import { MetaOpcode, MetaOpcodeName, Opcode, OpcodeName, OpcodeType } from './opcode';
 import { parseTextualOpcodes, TextualOpcodeInfo } from './parse-textual-opcode';
 import { skipMarker, skipPadding } from './skip-padding';
 import { addContext } from '../utils/error';
+import { goAroundSpecialGotoIf } from './work-around';
 
 export class OpcodeInfo {
    position: number;
@@ -51,17 +54,31 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
                opcodeInfo.expressions.push(
                   readExpression(reader, 'left operand'),
                   readExpression(reader, 'assigment operator'),
+               );
+               skipPadding(reader, 1);
+               opcodeInfo.expressions.push(
                   readExpression(reader, 'right operand'),
                );
-               if ((opcodeInfo.expressions[2] as Expression).type !== ExpressionType.Config)
+               if ((opcodeInfo.expressions[2] as Expression).type === ExpressionType.Variable)
+                  skipPadding(reader, 1);
+               else if ((opcodeInfo.expressions[2] as Expression).type !== ExpressionType.Config)
                   skipPadding(reader, 2);
                break;
             case MetaOpcode.Command:
-               opcodeInfo.type = OpcodeType.Opcode;
-               curByteCode = parseCommand();
+               opcodeInfo.type = curOpcodeType = OpcodeType.Opcode;
+               parseCommand();
+               break;
+            case MetaOpcode.Goto:
+               opcodeInfo.expressions.push(
+                  readRawInt16Expr(reader, 'jump target'),
+               );
                break;
             case MetaOpcode.GotoIf:
                skipMarker(reader, 1, 0x01);
+               if (goAroundSpecialGotoIf(reader)) {
+                  opcodeInfo.type = OpcodeType.Unknown;
+                  break;
+               }
                opcodeInfo.expressions.push(
                   readExpression(reader, 'left operand'),
                   readExpression(reader, 'comparison operator'),
@@ -137,9 +154,9 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
          }
 
          // eslint-disable-next-line no-inner-declarations
-         function parseCommand(): Opcode {
-            const byteCode = reader.readByte();
-            switch (byteCode) {
+         function parseCommand(): void {
+            curByteCode = reader.readByte();
+            switch (curByteCode) {
                case Opcode.ToFile:
                   opcodeInfo.expressions.push(readCStringExpr(reader, 'script name'));
                   break;
@@ -269,6 +286,7 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
                   );
                   break;
                case Opcode.Delay:
+                  // this can be actually a wait-interaction command 
                   opcodeInfo.expressions.push(
                      readExpression(reader, 'nFrame', true),
                   );
@@ -359,9 +377,8 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
                   );
                   break;
                default:
-                  throw Error(`Unknown opcode: 0x${byteCode.toString(16)}.`);
+                  throw Error(`Unknown opcode: 0x${curByteCode.toString(16)}.`);
             }
-            return byteCode;
          }
 
          opcodeInfo.code = curByteCode;
@@ -377,7 +394,7 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
          addContext(err, ` at MetaOpcode.${MetaOpcodeName(curByteCode)}`);
       else if (curOpcodeType === OpcodeType.Opcode)
          addContext(err, ` at Opcode.${OpcodeName(curByteCode)}`);
-      addContext(err, ` at 0x${curOpcodePos.toString(16)}`);
+      addContext(err, ` at position 0x${curOpcodePos.toString(16)}`);
       throw err;
    }
 

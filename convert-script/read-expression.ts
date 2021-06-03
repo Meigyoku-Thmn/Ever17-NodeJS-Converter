@@ -34,7 +34,7 @@ export function readRawByteExpr(reader: BufferTraverser, exprName: string): Expr
 }
 
 export const enum ExpressionType {
-   Operator, Const, Config, RGB, Variable, FunctionCall
+   Operator, Const, Config, RGB, Variable, FunctionCall,
 }
 
 export const enum Operator {
@@ -88,6 +88,8 @@ export function readExpression(reader: BufferTraverser, exprName: string, hasPad
    try {
       const mode = reader.readByte();
       let rs: Expression;
+
+      from_get_expression_routine:
       do {
          if (mode >= 0xc0 && mode <= 0xcf) {
             const config = [mode - 0xc0, reader.readByte(), reader.readByte(), reader.readByte(), reader.readByte()];
@@ -95,7 +97,8 @@ export function readExpression(reader: BufferTraverser, exprName: string, hasPad
                type: ExpressionType.Config,
                value: config,
             });
-            break;
+            hasPadding = false; // mode CX never have padding as far as I know
+            break from_get_expression_routine;
          }
          if (mode >= 0xa0 && mode <= 0xaf) {
             const a = reader.readByte();
@@ -103,7 +106,7 @@ export function readExpression(reader: BufferTraverser, exprName: string, hasPad
                type: ExpressionType.Const,
                value: 256 * (mode - 0xA0) + a,
             });
-            break;
+            break from_get_expression_routine;
          }
          if (mode >= 0xb0 && mode <= 0xbf) {
             const a = reader.readByte();
@@ -111,7 +114,7 @@ export function readExpression(reader: BufferTraverser, exprName: string, hasPad
                type: ExpressionType.Const,
                value: 256 * (mode - 0xBF) + (a - 0x100),
             });
-            break;
+            break from_get_expression_routine;
          }
          if (mode >= 0x80 && mode <= 0x8f) {
             const a = mode - 0x80;
@@ -119,7 +122,7 @@ export function readExpression(reader: BufferTraverser, exprName: string, hasPad
                type: ExpressionType.Const,
                value: a,
             });
-            break;
+            break from_get_expression_routine;
          }
          if (mode === 0xe0) {
             const r = reader.readByte();
@@ -129,34 +132,34 @@ export function readExpression(reader: BufferTraverser, exprName: string, hasPad
                type: ExpressionType.RGB,
                value: [r, g, b],
             });
-            break;
+            break from_get_expression_routine;
          }
 
          switch (mode) {
             case 0x14:
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Assign });
-               break;
+               break from_get_expression_routine;
             case 0x17:
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Addssign });
-               break;
+               break from_get_expression_routine;
             case 0x0c:
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Equal });
-               break;
+               break from_get_expression_routine;
             case 0x0d:
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.NotEqual });
-               break;
+               break from_get_expression_routine;
             case 0x0e:
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.LessThanOrEqual });
-               break;
+               break from_get_expression_routine;
             case 0x0f:
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.GreaterThanOrEqual });
-               break;
+               break from_get_expression_routine;
             case 0x10:
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.LessThan });
-               break;
+               break from_get_expression_routine;
             case 0x11:
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.GreaterThan });
-               break;
+               break from_get_expression_routine;
          }
 
          const [a1, a2] = [mode, reader.readByte()];
@@ -188,7 +191,7 @@ export function readExpression(reader: BufferTraverser, exprName: string, hasPad
                type: ExpressionType.Variable,
                name: fullName,
             });
-            break;
+            break from_get_expression_routine;
          }
          if (a1 === 0x33 && a2 === 0x0a) {
             let arg: Expression;
@@ -207,7 +210,7 @@ export function readExpression(reader: BufferTraverser, exprName: string, hasPad
                name: 'random',
                funcArgs: [arg],
             });
-            break;
+            break from_get_expression_routine;
          }
          // eslint-disable-next-line no-constant-condition
       } while (false);
