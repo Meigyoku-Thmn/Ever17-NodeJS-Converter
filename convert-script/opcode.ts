@@ -125,7 +125,7 @@ export const enum TextualOpcode {
 const _TextualOpcode = eval('TextualOpcode');
 
 export function isTextualOpcode(byteCode: number): boolean {
-   return _TextualOpcode[byteCode] != null;
+   return byteCode !== TextualOpcode.PutNewLine && _TextualOpcode[byteCode] != null;
 }
 
 export function TextualOpcodeName(value: Opcode): string {

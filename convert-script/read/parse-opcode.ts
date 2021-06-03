@@ -99,7 +99,7 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
                opcodeInfo.switches = [[null, ordinal]];
                opcodeInfo.textualOpcodeInfos = parseTextualOpcodes(textualBytecodes.subarray(
                   textualIndexes[ordinal.value as number] - textualIndexes[0],
-                  textualIndexes[ordinal.value as number + 1]
+                  textualIndexes[ordinal.value as number + 1] - textualIndexes[0]
                ), textualIndexes[ordinal.value as number]);
                break;
             }

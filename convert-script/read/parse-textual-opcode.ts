@@ -15,11 +15,11 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
    let curByteCode = 0;
 
    try {
-      curByteCode = reader.readByte();
       while (!reader.atEOF()) {
          const opcodeInfo = new TextualOpcodeInfo();
          curRelOpcodePos = reader.pos;
          curOpcodePos = pos + curRelOpcodePos;
+         curByteCode = reader.readByte();
 
          opcodeInfo.type = curOpcodeType = TextualOpcodeType.Command;
          switch (curByteCode) {
@@ -46,15 +46,15 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                const choices: TextualOpcodeInfo['choices'] = [];
                while (marker === TextualOpcode.OpenChoiceBox) {
                   const type = reader.readByte();
-                  if (type === 1) 
+                  if (type === 1)
                      choices.push([
                         null,
-                        parseText(true, reader.readByte()),
+                        parseText(reader.readByte(), true),
                      ]);
                   else if (type === 2)
                      choices.push([
                         readExpression(reader, 'choiceCond', true, 1),
-                        parseText(true, reader.readByte()),
+                        parseText(reader.readByte(), true),
                      ]);
                   else
                      throw Error(`Unknown type ${type} of this choice.`);
@@ -82,19 +82,21 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                break;
             default:
                curOpcodeType = TextualOpcodeType.Text;
-               parseText();
+               parseText(curByteCode);
          }
 
          // eslint-disable-next-line no-inner-declarations
-         function parseText(local = false, initialChr = TextualOpcode.End): string {
+         function parseText(initialChr: number, local = false): string {
             let text = '';
-            let c = initialChr !== TextualOpcode.End ? curByteCode : initialChr;
+            let c = initialChr;
+            let shouldBackwardOne = true;
             do {
                if (c === TextualOpcode.End) {
                   throw Error('Unexpected zero byte when reading text.');
                }
                if (c === TextualOpcode.PutNewLine) {
                   text += '\n';
+                  shouldBackwardOne = false;
                   break;
                }
                let chr: string;
@@ -104,52 +106,52 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                   chr = String.fromCharCode(c);
 
                switch (chr) {
-                  case '①': // Circled Number 1
-                     chr = '{💧💧}';
+                  case '①': // CIRCLED DIGIT ONE
+                     chr = '😓'; // it a Double Droplet 💧💧 in the japanese version
                      break;
-                  case '②': // Circled Number 2
+                  case '②': // CIRCLED DIGIT TWO
                      chr = '❤️';
                      break;
-                  case '③': // Circled Number 3
+                  case '③': // CIRCLED DIGIT THREE
                      chr = '💢';
                      break;
-                  case '④': // Circled Number 4
+                  case '④': // CIRCLED DIGIT FOUR
                      chr = '💦';
                      break;
-                  case '⑤': // Circled Number 5
-                     chr = '★';
+                  case '⑤': // CIRCLED DIGIT FIVE
+                     chr = '⭐';
                      break;
-                  case '⑩': // Circled Number 10
-                  case '‡I':
+                  case '⑩': // CIRCLED NUMBER TEN
                      chr = 'ä';
                      break;
-                  case '⑪': // Circled Number 11
-                  case '‡J':
+                  case '⑪': // CIRCLED NUMBER ELEVEN
                      chr = 'ö';
                      break;
-                  case '⑫': // Circled Number 12
-                  case '‡K':
+                  case '⑫': // CIRCLED NUMBER TWELVE
                      chr = 'ü';
                      break;
-                  case '⑬': // Circled Number 13
-                  case '‡L':
-                     chr = '—'; // long dash
+                  case '⑬': // CIRCLED NUMBER THIRTEEN
+                     chr = '—'; // EM DASH
                      break;
-                  // fallback cases, the English version do this too
-                  // TODO: verify this
-                  case '\x81D':
+                  // fallback cases for English language
+                  // TODO: make a separate mode for Japanese language
+                  case '．': // FULLWIDTH FULL STOP
                      chr = '.';
                      break;
-                  case '\x81@':
+                  case '　': // IDEOGRAPHIC SPACE
                      chr = ' ';
                      break;
-                  case '\x81I':
+                  case '！': // FULLWIDTH EXCLAMATION MARK
                      chr = '!';
                      break;
                }
+               text += chr;
 
                c = reader.readByte();
             } while (!isTextualOpcode(c));
+
+            if (shouldBackwardOne)
+               reader.pos--;
 
             if (local === false)
                opcodeInfo.text = text;
@@ -162,9 +164,6 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
          opcodeInfo.bytecodes = reader.buffer.subarray(curRelOpcodePos, reader.pos);
 
          opcodeInfos.push(opcodeInfo);
-
-         if (curOpcodeType !== TextualOpcodeType.Text)
-            curByteCode = reader.readByte();
 
          curOpcodeType = -1;
       }
