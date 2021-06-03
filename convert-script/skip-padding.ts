@@ -1,7 +1,7 @@
 import { BufferTraverser } from '../utils/buffer-wrapper';
-import { ScriptError } from '../utils/error';
 
-export function skipPadding(reader: BufferTraverser, count: number, location: string | (() => string)): void {
+export function skipPadding(reader: BufferTraverser, count: 1 | 2 | 4): void {
+   const pos = reader.pos;
    let padding = 0;
 
    if (count === 1)
@@ -13,15 +13,12 @@ export function skipPadding(reader: BufferTraverser, count: number, location: st
    else
       throw Error(`Unsupported padding count = ${count}.`);
 
-   if (padding !== 0) {
-      if (typeof (location) === 'function')
-         location = location();
-      throw Error(`Expected ${count}-byte zero padding ${location}, got 0x${padding.toString(16)}.`);
-   }
+   if (padding !== 0)
+      throw Error(`Expected ${count}-byte zero padding at 0x${pos.toString(16)}, got 0x${padding.toString(16)}.`);
 }
 
-export function skipMarker(reader: BufferTraverser,
-   count: number, expectedValue: number, location: string | (() => string), asMessage = false): number {
+export function skipMarker(reader: BufferTraverser, count: 1 | 2 | 4, expectedValue: number): number {
+   const pos = reader.pos;
    let marker = 0;
 
    if (count === 1)
@@ -31,13 +28,10 @@ export function skipMarker(reader: BufferTraverser,
    else
       throw Error(`Unsupported marker count = ${count}.`);
 
-   if (marker !== expectedValue) {
-      if (typeof (location) === 'function')
-         location = location();
-      throw Error(asMessage
-         ? location
-         : `Expected 0x${expectedValue.toString(16)} ${location}, got 0x${marker.toString(16)}.`);
-   }
+   if (marker !== expectedValue)
+      throw Error(
+         `Expected ${count}-byte marker 0x${expectedValue.toString(16)} at 0x${pos.toString(16)}, ` +
+         `got 0x${marker.toString(16)}.`);
 
    return marker;
 }

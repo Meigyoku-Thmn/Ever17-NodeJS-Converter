@@ -19,8 +19,10 @@ export const enum MetaOpcode {
    MUnk15 = 0x15,
 }
 
+const _MetaOpcode = eval('MetaOpcode');
+
 export function MetaOpcodeName(value: MetaOpcode): string {
-   return eval('MetaOpcode')[value];
+   return _MetaOpcode[value];
 }
 
 export const enum Opcode {
@@ -64,6 +66,8 @@ export const enum Opcode {
    SetDialogColor = 0x46,
 }
 
+const _Opcode = eval('Opcode');
+
 export function OpcodeName(value: Opcode): string {
-   return eval('Opcode')[value];
+   return _Opcode[value];
 }
