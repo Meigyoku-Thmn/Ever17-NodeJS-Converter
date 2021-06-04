@@ -9,6 +9,7 @@
    "dependencies": {
       "@meigyokuthmn/iconv-lite": "npm:@meigyokuthmn/iconv-lite@^0.7.0-pre",
       "csbinary": "^2.1.4",
+      "fs-ext": "^2.0.0",
       "yargs": "^17.0.1"
    },
    "devDependencies": {

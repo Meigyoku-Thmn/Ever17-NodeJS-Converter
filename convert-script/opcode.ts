@@ -74,7 +74,7 @@ export const enum Opcode {
    LoadFG = 0x0f,
    RemoveFG = 0x10,
    LoadFG2 = 0x12,
-   RemoveFG2 = 0x13,
+   RemoveFG3 = 0x13,
    SetFGOrder = 0x14,
    AffectFG = 0x15,
    LoadFG3 = 0x16,

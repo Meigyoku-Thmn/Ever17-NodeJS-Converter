@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { File, BinaryReader, SeekOrigin } from 'csbinary';
 import { parseOpcodes } from './read/parse-opcode';
-import { dumpCode } from './write/dump-code';
+import { dumpCodeLegacy } from './write/dump-code-legacy';
 import { dumpRenPyScript, dumpScript } from './write/dump-script';
 import { printError } from '../utils/error';
 import { DEBUG_SCR_FILES } from '../debug/';
@@ -105,15 +105,15 @@ let currentFileName: string;
             .split('\0')
             .filter(e => e.length > 0);
 
-         const opcodes = parseOpcodes({
-            bytecodes, pos: labels[0], textualIndexes, textualBytecodes, imageNames
+         const opcodeInfos = parseOpcodes({
+            bytecodes, labels, textualIndexes, textualBytecodes, imageNames
          });
 
          fs.mkdirSync(outputDir, { recursive: true });
          const basename = path.join(outputDir, path.basename(fileName, '.scr'));
-         dumpCode(opcodes, basename + '.txt');
-         dumpScript(opcodes, basename + '.txt');
-         dumpRenPyScript(opcodes, basename + '.txt');
+         dumpCodeLegacy(opcodeInfos, basename + '.txt');
+         dumpScript(opcodeInfos, basename + '.txt');
+         dumpRenPyScript(opcodeInfos, basename + '.txt');
       }
       console.timeEnd(MyName);
    } catch (err) {

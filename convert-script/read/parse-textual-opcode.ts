@@ -32,27 +32,27 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                   readExpression(reader, 'duration', true),
                );
                break;
-            case TextualOpcode.AppendText:
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'unk', true),
-               );
+            case TextualOpcode.AppendText: {
+               const expr = readExpression(reader, 'unk', true); // always zero
+               if (expr.value !== 0)
+                  throw Error(`Expected a zero-value expression, got value ${expr.value}.`);
                break;
+            }
             case TextualOpcode.OpenChoiceBox: {
                skipPadding(reader, 1);
                opcodeInfo.expressions.push(
                   readRawInt16Expr(reader, 'id'),
                );
                let marker = skipMarker(reader, 1, TextualOpcode.OpenChoiceBox);
-               const choices: TextualOpcodeInfo['choices'] = [];
                while (marker === TextualOpcode.OpenChoiceBox) {
                   const type = reader.readByte();
                   if (type === 1)
-                     choices.push([
+                     opcodeInfo.choices.push([
                         null,
                         parseText(reader.readByte(), true),
                      ]);
                   else if (type === 2)
-                     choices.push([
+                     opcodeInfo.choices.push([
                         readExpression(reader, 'choiceCond', true, 1),
                         parseText(reader.readByte(), true),
                      ]);
@@ -81,7 +81,7 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
             case TextualOpcode.MarkBigChar:
                break;
             default:
-               curOpcodeType = TextualOpcodeType.Text;
+               opcodeInfo.type = curOpcodeType = TextualOpcodeType.Text;
                parseText(curByteCode);
          }
 
@@ -101,13 +101,14 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                }
                let chr: string;
                if ((c >= 0x80 && c <= 0xa0) || (c >= 0xe0 && c <= 0xef))
-                  chr = iconv.decode(Buffer.from([]), 'CP932');
+                  chr = iconv.decode(Buffer.from([c, reader.readByte()]), 'CP932');
                else
                   chr = String.fromCharCode(c);
 
+               // the japanese version has emojis in script
                switch (chr) {
                   case '①': // CIRCLED DIGIT ONE
-                     chr = '😓'; // it a Double Droplet 💧💧 in the japanese version
+                     chr = '💧'; // it was a Double Droplet 💧💧 in the japanese version
                      break;
                   case '②': // CIRCLED DIGIT TWO
                      chr = '❤️';

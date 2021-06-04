@@ -92,7 +92,7 @@ export function readExpression(reader: BufferTraverser,
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Assign });
                break from_get_expression_routine;
             case 0x17:
-               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Addssign });
+               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.AddAssign });
                break from_get_expression_routine;
             case 0x0c:
                rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Equal });

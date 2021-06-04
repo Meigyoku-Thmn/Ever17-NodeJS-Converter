@@ -9,15 +9,17 @@ import { ExpressionType } from '../expression';
 
 type Params = {
    bytecodes: Buffer,
-   pos: number,
+   labels: number[],
    textualIndexes: number[],
    textualBytecodes: Buffer,
    imageNames: string[],
 };
 
-export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes, imageNames }: Params): OpcodeInfo[] {
+export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecodes, imageNames }: Params): OpcodeInfo[] {
    const reader = new BufferTraverser(bytecodes);
    const opcodeInfos: OpcodeInfo[] = [];
+
+   const pos = labels[0];
 
    let curOpcodePos = 0;
    let curRelOpcodePos = 0;
@@ -53,9 +55,7 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
                parseCommand();
                break;
             case MetaOpcode.Goto:
-               opcodeInfo.expressions.push(
-                  readRawInt16Expr(reader, 'jump target'),
-               );
+               opcodeInfo.switches = [[null, readRawInt16Expr(reader, 'jump target').mapOffset(labels)]];
                break;
             case MetaOpcode.GotoIf:
                skipMarker(reader, 1, 0x01);
@@ -73,7 +73,7 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
                );
                skipMarker(reader, 1, 0x01);
                skipMarker(reader, 1, 0x00);
-               opcodeInfo.switches = [[null, readRawInt16Expr(reader, 'jump target')]];
+               opcodeInfo.switches = [[null, readRawInt16Expr(reader, 'jump target').mapOffset(labels)]];
                break;
             case MetaOpcode.Sleep:
                opcodeInfo.expressions.push(
@@ -87,7 +87,7 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
                while (marker === 0x2700) {
                   opcodeInfo.switches.push([
                      readExpression(reader, 'case expression', true),
-                     readRawInt16Expr(reader, 'jump target'),
+                     readRawInt16Expr(reader, 'jump target').mapOffset(labels),
                   ]);
                   marker = reader.readUInt16();
                }
@@ -97,10 +97,15 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
             case MetaOpcode.CallText: {
                const ordinal = readRawInt16Expr(reader, 'subroutine ordinal');
                opcodeInfo.switches = [[null, ordinal]];
-               opcodeInfo.textualOpcodeInfos = parseTextualOpcodes(textualBytecodes.subarray(
-                  textualIndexes[ordinal.value as number] - textualIndexes[0],
-                  textualIndexes[ordinal.value as number + 1] - textualIndexes[0]
-               ), textualIndexes[ordinal.value as number]);
+               const pos = textualIndexes[ordinal.value as number];
+               const begin = textualIndexes[ordinal.value as number] - textualIndexes[0];
+               let end = textualIndexes[ordinal.value as number + 1] - textualIndexes[0];
+               if (isNaN(end))
+                  end = undefined;
+               opcodeInfo.textualOpcodeInfos = parseTextualOpcodes(
+                  textualBytecodes.subarray(begin, end),
+                  pos
+               );
                break;
             }
             case MetaOpcode.MUnk28:
@@ -215,7 +220,7 @@ export function parseOpcodes({ bytecodes, pos, textualIndexes, textualBytecodes,
                      readExpression(reader, 'mode', true),
                   );
                   break;
-               case Opcode.RemoveFG2:
+               case Opcode.RemoveFG3:
                   opcodeInfo.expressions.push(
                      readExpression(reader, 'sum of ids'),
                      readRawInt16Expr(reader, 'unk'),

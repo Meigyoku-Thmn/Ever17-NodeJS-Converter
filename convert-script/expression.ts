@@ -3,13 +3,14 @@ export const enum ExpressionType {
 }
 
 export const enum Operator {
-   Assign, Addssign, Equal, NotEqual, LessThanOrEqual, GreaterThanOrEqual, LessThan, GreaterThan,
+   Assign, AddAssign, Equal, NotEqual, LessThanOrEqual, GreaterThanOrEqual, LessThan, GreaterThan,
 }
 
 export class Expression {
    type: ExpressionType;
    exprName: string;
    value?: string | number | number[];
+   target?: number;
    operator?: Operator;
    name?: string;
    funcArgs?: Expression[];
@@ -43,7 +44,20 @@ export class Expression {
       if (typeof (this.value) !== 'number')
          throw Error(`Only number expression can be used as an ordinal number, exprName '${this.exprName}'.`);
 
-      this.value = `bgm${this.value.toString(16).padStart(2, '0')}`;
+      this.value = `bgm${this.value.toString().padStart(2, '0')}`;
+
+      return this;
+   }
+
+   mapOffset(labels: number[]): Expression {
+      if (this.type !== ExpressionType.Const)
+         throw Error(`Only number expression can be used as an ordinal number, exprName '${this.exprName}'.`);
+      if (typeof (this.value) !== 'number')
+         throw Error(`Only number expression can be used as an ordinal number, exprName '${this.exprName}'.`);
+
+      this.target = labels[this.value];
+      if (this.target == null)
+         throw Error(`Ordinal number is out-of-range, exprName '${this.exprName}'`);
 
       return this;
    }
