@@ -29,7 +29,7 @@ export class TextualOpcodeInfo {
 }
 
 export const enum OpcodeType {
-   MetaOpcode, Opcode, Unknown,
+   MetaOpcode, Opcode, UnknownGotoIf,
 }
 
 export const enum TextualOpcodeType {

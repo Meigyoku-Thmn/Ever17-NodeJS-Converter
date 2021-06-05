@@ -1,9 +1,24 @@
+import iconv from 'iconv-lite';
 import { BufferTraverser } from '../../utils/buffer-wrapper';
 import { addContext } from '../../utils/error';
 import { isTextualOpcode, TextualOpcode, TextualOpcodeInfo, TextualOpcodeName, TextualOpcodeType } from '../opcode';
 import { readCStringExpr, readExpression, readRawByteExpr, readRawInt16Expr } from './read-expression';
-import iconv from 'iconv-lite';
 import { skipMarker, skipPadding } from './skip-padding';
+
+const CP1252 = iconv.getDecoder('CP1258');
+const CP932 = iconv.getDecoder('CP932');
+
+function decodeCP932(...bytes: number[]): string {
+   const rs = CP932.write(Buffer.from(bytes));
+   CP932.end();
+   return rs;
+}
+
+function decodeCP1252(...bytes: number[]): string {
+   const rs = CP1252.write(Buffer.from(bytes));
+   CP932.end();
+   return rs;
+}
 
 export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpcodeInfo[] {
    const reader = new BufferTraverser(bytecodes);
@@ -88,68 +103,77 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
          // eslint-disable-next-line no-inner-declarations
          function parseText(initialChr: number, local = false): string {
             let text = '';
-            let c = initialChr;
+            let c1 = initialChr;
             let shouldBackwardOne = true;
             do {
-               if (c === TextualOpcode.End) {
+               if (c1 === TextualOpcode.End) {
                   throw Error('Unexpected zero byte when reading text.');
                }
-               if (c === TextualOpcode.PutNewLine) {
+               if (c1 === TextualOpcode.PutNewLine) {
                   text += '\n';
                   shouldBackwardOne = false;
                   break;
                }
-               let chr: string;
-               if ((c >= 0x80 && c <= 0xa0) || (c >= 0xe0 && c <= 0xef))
-                  chr = iconv.decode(Buffer.from([c, reader.readByte()]), 'CP932');
-               else
-                  chr = String.fromCharCode(c);
+               let c2: number;
+               if ((c1 >= 0x80 && c1 <= 0xa0) || (c1 >= 0xe0 && c1 <= 0xef))
+                  c2 = reader.readByte();
+
+               let emoji: string;
+               if (c2 != null)
+                  emoji = decodeCP932(c1, c2);
 
                // the japanese version has emojis in script
-               switch (chr) {
+               switch (emoji) {
                   case '①': // CIRCLED DIGIT ONE
-                     chr = '💧'; // it was a Double Droplet 💧💧 in the japanese version
+                     emoji = '💧'; // it was a Double Droplet 💧💧 in the japanese version
                      break;
                   case '②': // CIRCLED DIGIT TWO
-                     chr = '❤️';
+                     emoji = '❤️';
                      break;
                   case '③': // CIRCLED DIGIT THREE
-                     chr = '💢';
+                     emoji = '💢';
                      break;
                   case '④': // CIRCLED DIGIT FOUR
-                     chr = '💦';
+                     emoji = '💦';
                      break;
                   case '⑤': // CIRCLED DIGIT FIVE
-                     chr = '⭐';
+                     emoji = '⭐';
                      break;
                   case '⑩': // CIRCLED NUMBER TEN
-                     chr = 'ä';
+                     emoji = 'ä';
                      break;
                   case '⑪': // CIRCLED NUMBER ELEVEN
-                     chr = 'ö';
+                     emoji = 'ö';
                      break;
                   case '⑫': // CIRCLED NUMBER TWELVE
-                     chr = 'ü';
+                     emoji = 'ü';
                      break;
                   case '⑬': // CIRCLED NUMBER THIRTEEN
-                     chr = '—'; // EM DASH
+                     emoji = '—'; // EM DASH
                      break;
                   // fallback cases for English language
                   // TODO: make a separate mode for Japanese language
                   case '．': // FULLWIDTH FULL STOP
-                     chr = '.';
+                     emoji = '.';
                      break;
                   case '　': // IDEOGRAPHIC SPACE
-                     chr = ' ';
+                     emoji = ' ';
                      break;
                   case '！': // FULLWIDTH EXCLAMATION MARK
-                     chr = '!';
+                     emoji = '!';
                      break;
+                  default:
+                     emoji = null;
                }
-               text += chr;
+               if (emoji != null)
+                  text += emoji;
+               else if (c2 != null)
+                  text += decodeCP1252(c1, c2);
+               else
+                  text += decodeCP1252(c1);
 
-               c = reader.readByte();
-            } while (!isTextualOpcode(c));
+               c1 = reader.readByte();
+            } while (!isTextualOpcode(c1));
 
             if (shouldBackwardOne)
                reader.pos--;

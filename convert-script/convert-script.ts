@@ -111,7 +111,7 @@ let currentFileName: string;
 
          fs.mkdirSync(outputDir, { recursive: true });
          const basename = path.join(outputDir, path.basename(fileName, '.scr'));
-         dumpCodeLegacy(opcodeInfos, basename + '.txt');
+         dumpCodeLegacy(opcodeInfos, basename + '.dec');
          dumpScript(opcodeInfos, basename + '.txt');
          dumpRenPyScript(opcodeInfos, basename + '.txt');
       }

@@ -99,7 +99,7 @@ function generateExprStr(exprs: Expression[]): string {
             break;
          case ExpressionType.Config: {
             const arr = expr.value as number[];
-            exprStr += `VAR_c${arr[0].toString(16)}_${arr[1] + arr[2] * 10}_${arr[3] + arr[4] * 10}`;
+            exprStr += `VAR_c${arr[0].toString(16)}_${arr[1] + (arr[2] << 8)}_${arr[3] + (arr[4] << 8)}`;
             break;
          }
       }
@@ -109,6 +109,7 @@ function generateExprStr(exprs: Expression[]): string {
 
 export function dumpCodeLegacy(opcodeInfos: OpcodeInfo[], outputPath: string): void {
    const fd = fs.openSync(outputPath, 'w');
+   fs.writeSync(fd, '\uFEFF');
 
    for (const opcodeInfo of opcodeInfos) {
       // offset tag and hex dump
@@ -158,12 +159,18 @@ export function dumpCodeLegacy(opcodeInfos: OpcodeInfo[], outputPath: string): v
             case MetaOpcode.Sleep:
                fs.writeSync(fd, `unSkippableDelay ${generateExprStr(opcodeInfo.expressions)}\r\n`);
                break;
+            case MetaOpcode.MUnk0D: {
+               const a1 = opcodeInfo.expressions[0].value;
+               const a2 = (<number>opcodeInfo.expressions[1].value & 0xFF).toString(16).padStart(2, '0');
+               const a3 = (<number>opcodeInfo.expressions[1].value >>> 8).toString(16).padStart(2, '0');
+               fs.writeSync(fd, `l_unk0d ${a1} ${a2} ${a3}\r\n`);
+               break;
+            }
             case MetaOpcode.MUnk28:
             case MetaOpcode.MUnk19:
             case MetaOpcode.MUnk12:
             case MetaOpcode.MUnk13:
             case MetaOpcode.MUnk06:
-            case MetaOpcode.MUnk0D:
             case MetaOpcode.MUnk15: {
                let code = `l_unk${opcodeInfo.code.toString(16).padStart(2, '0')} `;
                code += generateExprStr(opcodeInfo.expressions);
@@ -205,6 +212,15 @@ export function dumpCodeLegacy(opcodeInfos: OpcodeInfo[], outputPath: string): v
                const values = opcodeInfo.expressions.map(e => e.value);
                values.splice(3, 0, '00000000');
                values.splice(2, 0, '00000000');
+               fs.writeSync(fd, `${OpcodeMap[opcodeInfo.code]} ${values.join(' ')}`);
+               fs.writeSync(fd, '\r\n');
+               break;
+            }
+            case Opcode.LoadFG3: {
+               const values = opcodeInfo.expressions.map(e => e.value);
+               values.splice(2, 0, '00000000');
+               values.splice(1, 0, '00000000');
+               values.splice(0, 0, '00000000');
                fs.writeSync(fd, `${OpcodeMap[opcodeInfo.code]} ${values.join(' ')}`);
                fs.writeSync(fd, '\r\n');
                break;
@@ -323,10 +339,74 @@ export function dumpCodeLegacy(opcodeInfos: OpcodeInfo[], outputPath: string): v
                fs.writeSync(fd, '\r\n');
                break;
             }
+            case Opcode.AffectFG:
+               switch (opcodeInfo.expressions[1].value) {
+                  case 8:
+                     fs.writeSync(fd, 'makeFGTransparent ');
+                     break;
+                  case 16:
+                  case 15:
+                     fs.writeSync(fd, 'makeFGNormal ');
+                     break;
+                  case 17:
+                     fs.writeSync(fd, 'makeFGHasYellowAmbient ');
+                     break;
+                  default:
+                     fs.writeSync(fd, 'InvalidCommand ');
+               }
+               if (opcodeInfo.expressions[0].value === 0)
+                  fs.writeSync(fd, '1\r\n');
+               else
+                  fs.writeSync(fd, '2\r\n');
+               break;
+            case Opcode.SetFGOrder: {
+               const code = opcodeInfo.expressions.map(e => e.value as number).toString();
+               fs.writeSync(fd, 'setFGOrder ');
+               switch (code) {
+                  case '0,1,2':
+                     fs.writeSync(fd, '4 2 1');
+                     break;
+                  case '0,2,1':
+                     fs.writeSync(fd, '2 4 1');
+                     break;
+                  case '1,0,2':
+                     fs.writeSync(fd, '4 1 2');
+                     break;
+                  case '1,2,0':
+                     fs.writeSync(fd, '1 4 2');
+                     break;
+                  case '2,0,1':
+                     fs.writeSync(fd, '2 1 4');
+                     break;
+                  case '2,1,0':
+                     fs.writeSync(fd, '1 2 4');
+                     break;
+                  case '0,1,255':
+                     fs.writeSync(fd, '4 2 1');
+                     break;
+                  case '1,0,255':
+                     fs.writeSync(fd, '4 1 2');
+                     break;
+                  default:
+                     fs.writeSync(fd, 'error');
+               }
+               fs.writeSync(fd, '\r\n');
+               break;
+            }
+            case Opcode.Delay: {
+               const code = generateExprStr(opcodeInfo.expressions);
+               if (code === 'VAR_c1_34464_0') {
+                  fs.writeSync(fd, 'waitForClick\r\n');
+                  break;
+               }
+            }
+            // eslint-disable-next-line no-fallthrough
             default:
                fs.writeSync(fd, `${OpcodeMap[opcodeInfo.code]} ${generateExprStr(opcodeInfo.expressions)}`.trimRight());
                fs.writeSync(fd, '\r\n');
          }
+      } else if (opcodeInfo.type === OpcodeType.UnknownGotoIf) {
+         fs.writeSync(fd, 'notActuallyGotoIfUnk\r\n');
       } else {
          fs.writeSync(fd, '\r\n');
       }
@@ -357,9 +437,11 @@ function tryPrintPrettierVarOp(fd: number, opcodeInfo: OpcodeInfo): boolean {
       case 'eff_44':
          fs.writeSync(fd, `setNumberOfFlash ${lastExpr.value}\r\n`);
          break;
-      case 'eff_43':
-         fs.writeSync(fd, `setFlashBrightness ${lastExpr.value}\r\n`);
+      case 'eff_43': {
+         const value = lastExpr.type === ExpressionType.RGB ? `rgb(${lastExpr.value})` : lastExpr.value.toString();
+         fs.writeSync(fd, `setFlashBrightness ${value}\r\n`);
          break;
+      }
       case 'eff_13':
          if (lastExpr.value === 1)
             fs.writeSync(fd, 'turnOnFullscreenTextMode\r\n');
@@ -394,7 +476,7 @@ function printTextualCode(fd: number, opcodeInfos: TextualOpcodeInfo[]): void {
             else if (opcodeInfo.code === TextualOpcode.OpenChoiceBox) {
                fs.writeSync(fd, `{choice 00 ${opcodeInfo.expressions[0].value.toString(16).padStart(4, '0')} `);
                for (const [cond, str] of opcodeInfo.choices) {
-                  const prefix = !cond ? '' : `[cond ${generateExprStr([cond])}]`;
+                  const prefix = !cond ? '' : `[cond ${generateExprStr([cond])} 14 (00)]`;
                   fs.writeSync(fd, `|${prefix}${str.replace('\n', '')}`);
                }
                fs.writeSync(fd, '}');
@@ -408,7 +490,7 @@ function printTextualCode(fd: number, opcodeInfos: TextualOpcodeInfo[]): void {
             }
             break;
          case TextualOpcodeType.Text:
-            fs.writeSync(fd, opcodeInfo.text);
+            fs.writeSync(fd, opcodeInfo.text.replace('\n', '\r\n'));
             break;
       }
    }

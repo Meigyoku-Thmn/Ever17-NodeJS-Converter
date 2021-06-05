@@ -47,6 +47,10 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                );
                if (opcodeInfo.expressions[2].type === ExpressionType.Variable)
                   skipPadding(reader, 1);
+               else if (opcodeInfo.expressions[2].type === ExpressionType.RGB) {
+                  skipPadding(reader, 1);
+                  skipPadding(reader, 2);
+               }
                else if (opcodeInfo.expressions[2].type !== ExpressionType.Config)
                   skipPadding(reader, 2);
                break;
@@ -60,7 +64,7 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
             case MetaOpcode.GotoIf:
                skipMarker(reader, 1, 0x01);
                if (goAroundSpecialGotoIf(reader)) {
-                  opcodeInfo.type = OpcodeType.Unknown;
+                  opcodeInfo.type = OpcodeType.UnknownGotoIf;
                   break;
                }
                opcodeInfo.expressions.push(
