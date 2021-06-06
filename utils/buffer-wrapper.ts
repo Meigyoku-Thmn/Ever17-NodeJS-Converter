@@ -7,8 +7,11 @@ export class BufferTraverser {
    constructor(buffer: Buffer) {
       this.buffer = buffer;
    }
-   atEOF(): boolean {
+   eof(): boolean {
       return this.pos >= this.buffer.length;
+   }
+   eofPassed(): boolean {
+      return this.pos > this.buffer.length;
    }
    readUInt16(): number {
       const rs = this.buffer.readUInt16LE(this.pos);

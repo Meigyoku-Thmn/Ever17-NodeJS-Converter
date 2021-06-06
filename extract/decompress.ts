@@ -69,7 +69,7 @@ export function decompress(inp: Buffer, _uncompressedLength = 0): Buffer {
          }
       }
    }
-   if (out.atEOF())
+   if (out.eofPassed())
       throw Error('Something wrong');
    return out.buffer;
 }

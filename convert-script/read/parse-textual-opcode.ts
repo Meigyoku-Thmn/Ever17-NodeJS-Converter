@@ -30,7 +30,7 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
    let curByteCode = 0;
 
    try {
-      while (!reader.atEOF()) {
+      while (!reader.eof()) {
          const opcodeInfo = new TextualOpcodeInfo();
          curRelOpcodePos = reader.pos;
          curOpcodePos = pos + curRelOpcodePos;

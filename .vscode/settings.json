@@ -1,4 +1,5 @@
 {
-    "editor.detectIndentation": false,
-    "editor.tabSize": 3
+   "editor.detectIndentation": false,
+   "editor.tabSize": 3,
+   "typescript.tsserver.experimental.enableProjectDiagnostics": true
 }

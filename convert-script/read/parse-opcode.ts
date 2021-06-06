@@ -27,7 +27,7 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
    let curByteCode = 0;
 
    try {
-      while (!reader.atEOF()) {
+      while (!reader.eof()) {
          const opcodeInfo = new OpcodeInfo();
          curRelOpcodePos = reader.pos;
          curOpcodePos = pos + curRelOpcodePos;

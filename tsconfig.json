@@ -7,7 +7,10 @@
       "inlineSourceMap": true,
       "target": "ES2017",
       "moduleResolution": "Node",
-      "esModuleInterop": true
+      "esModuleInterop": true,
+      "incremental": true,
+      "newLine": "lf",
+      "outDir": ".build",
    },
    "exclude": [
       "node_modules/*",
