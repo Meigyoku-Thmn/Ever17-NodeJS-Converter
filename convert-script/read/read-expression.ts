@@ -1,6 +1,8 @@
 import { BufferTraverser } from '../../utils/buffer-wrapper';
 import { addContext } from '../../utils/error';
+import { makeHexPad2 } from '../../utils/string';
 import { Expression, ExpressionType, Operator } from '../expression';
+import { VARIABLE_MAP } from '../write/variable_map';
 import { skipPadding } from './skip-padding';
 
 function createRawExpr(value: number | string): Expression {
@@ -33,7 +35,6 @@ export function readRawByteExpr(reader: BufferTraverser, exprName: string): Expr
       throw err;
    }
 }
-
 
 export function readExpression(reader: BufferTraverser,
    exprName: string, hasPadding = false, paddingSize: 1 | 2 = 2): Expression {
@@ -138,10 +139,10 @@ export function readExpression(reader: BufferTraverser,
             } else {
                throw Error(`Invalid variable kind: 0x${kind.toString(16)}.`);
             }
-            fullName += name.toString(16).padStart(2, '0');
+            fullName += makeHexPad2(name);
             rs = new Expression({
                type: ExpressionType.Variable,
-               name: fullName,
+               name: VARIABLE_MAP[fullName] ?? fullName,
             });
             break from_get_expression_routine;
          }

@@ -33,7 +33,7 @@ export const enum OpcodeType {
 }
 
 export const enum TextualOpcodeType {
-   Text, Command, Unknown,
+   Text, Command,
 }
 
 export const enum MetaOpcode {
@@ -109,25 +109,25 @@ export function OpcodeName(value: Opcode): string {
 
 export const enum TextualOpcode {
    End = 0x00,
-   PutNewLine = 0x01,
-   WaitInteraction = 0x02,
+   NewLine = 0x01,
+   Wait = 0x02,
    ClearText = 0x03,
    Delay = 0x04,
-   AppendText = 0x05,
-   OpenChoiceBox = 0x0b,
+   Append = 0x05,
+   Choice = 0x0b,
    WaitVoice = 0x0c,
-   PlayVoice = 0x0d,
+   Voice = 0x0d,
    Mark = 0x0e,
-   ToNextPage = 0x10,
-   MarkBigChar = 0x11,
+   Next = 0x10, // Turn on/off some text states?
+   Big = 0x11, // Make text big
 }
 
 const _TextualOpcode = eval('TextualOpcode');
 
 export function isTextualOpcode(byteCode: number): boolean {
-   return byteCode !== TextualOpcode.PutNewLine && _TextualOpcode[byteCode] != null;
+   return byteCode !== TextualOpcode.NewLine && _TextualOpcode[byteCode] != null;
 }
 
-export function TextualOpcodeName(value: Opcode): string {
+export function TextualOpcodeName(value: TextualOpcode): string {
    return _TextualOpcode[value];
 }

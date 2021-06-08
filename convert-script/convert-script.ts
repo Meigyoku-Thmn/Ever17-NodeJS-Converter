@@ -3,10 +3,10 @@ import path from 'path';
 import fs from 'fs';
 import { File, BinaryReader, SeekOrigin } from 'csbinary';
 import { parseOpcodes } from './read/parse-opcode';
-import { dumpCodeLegacy } from './write/dump-code-legacy';
 import { dumpRenPyScript, dumpScript } from './write/dump-script';
 import { printError } from '../utils/error';
 import { DEBUG_SCR_FILES } from '../debug/';
+import { dumpCode } from './write/dump-code';
 
 let _DEBUG_SCR_FILES = DEBUG_SCR_FILES ?? [];
 if (_DEBUG_SCR_FILES.length === 0)
@@ -111,7 +111,8 @@ let currentFileName: string;
 
          fs.mkdirSync(outputDir, { recursive: true });
          const basename = path.join(outputDir, path.basename(fileName, '.scr'));
-         dumpCodeLegacy(opcodeInfos, basename + '.dec');
+         // dumpCodeLegacy(opcodeInfos, basename + '.dec');
+         dumpCode(opcodeInfos, basename + '.txt');
          dumpScript(opcodeInfos, basename + '.txt');
          dumpRenPyScript(opcodeInfos, basename + '.txt');
       }

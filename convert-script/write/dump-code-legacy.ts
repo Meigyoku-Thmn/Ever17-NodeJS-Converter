@@ -4,6 +4,7 @@ import {
    MetaOpcode, Opcode, OpcodeInfo, OpcodeType, TextualOpcode, TextualOpcodeInfo, TextualOpcodeType
 } from '../opcode';
 import { seekSync, constants } from 'fs-ext';
+import { makeHexPad16, makeHexPad2 } from '../../utils/string';
 
 const OperatorMap = {
    [Operator.Assign]: ':=',
@@ -57,16 +58,16 @@ const OpcodeMap = {
 };
 
 const TextualOpcodeMap = {
-   [TextualOpcode.WaitInteraction]: 'waitForClick',
+   [TextualOpcode.Wait]: 'waitForClick',
    [TextualOpcode.ClearText]: 'clearText',
    [TextualOpcode.Delay]: 'delay',
-   [TextualOpcode.AppendText]: 'appendText',
-   [TextualOpcode.OpenChoiceBox]: 'choice',
+   [TextualOpcode.Append]: 'appendText',
+   [TextualOpcode.Choice]: 'choice',
    [TextualOpcode.WaitVoice]: 'waitForSound',
-   [TextualOpcode.PlayVoice]: 'sound',
+   [TextualOpcode.Voice]: 'sound',
    [TextualOpcode.Mark]: 'marker',
-   [TextualOpcode.ToNextPage]: 'nextPage',
-   [TextualOpcode.MarkBigChar]: 'bigChar',
+   [TextualOpcode.Next]: 'nextPage',
+   [TextualOpcode.Big]: 'bigChar',
 };
 
 function generateExprStr(exprs: Expression[]): string {
@@ -113,17 +114,17 @@ export function dumpCodeLegacy(opcodeInfos: OpcodeInfo[], outputPath: string): v
 
    for (const opcodeInfo of opcodeInfos) {
       // offset tag and hex dump
-      fs.writeSync(fd, `[${opcodeInfo.position.toString(16).padStart(8, '0')}]`);
+      fs.writeSync(fd, `[${makeHexPad16(opcodeInfo.position)}]`);
       if (opcodeInfo.type === OpcodeType.Opcode) {
          fs.writeSync(fd, '10: \r\n');
-         fs.writeSync(fd, `[${(opcodeInfo.position + 1).toString(16).padStart(8, '0')}]`);
+         fs.writeSync(fd, `[${makeHexPad16(opcodeInfo.position + 1)}]`);
          fs.writeSync(fd, [...opcodeInfo.bytecodes.subarray(1)]
-            .map(b => b.toString(16).padStart(2, '0'))
+            .map(b => makeHexPad2(b))
             .join(' '));
       }
       else
          fs.writeSync(fd, [...opcodeInfo.bytecodes]
-            .map(b => b.toString(16).padStart(2, '0'))
+            .map(b => makeHexPad2(b))
             .join(' '));
       fs.writeSync(fd, ': ');
 
@@ -138,21 +139,21 @@ export function dumpCodeLegacy(opcodeInfos: OpcodeInfo[], outputPath: string): v
                fs.writeSync(fd, '\r\n');
                break;
             case MetaOpcode.Goto:
-               fs.writeSync(fd, `goto ${opcodeInfo.switches[0][1].target.toString(16).padStart(8, '0')} `);
-               fs.writeSync(fd, `(${opcodeInfo.switches[0][1].value.toString(16).padStart(8, '0')})\r\n`);
+               fs.writeSync(fd, `goto ${makeHexPad16(opcodeInfo.switches[0][1].target)} `);
+               fs.writeSync(fd, `(${makeHexPad16(opcodeInfo.switches[0][1].value as number)})\r\n`);
                break;
             case MetaOpcode.GotoIf:
                fs.writeSync(fd, `gotoif 1 ${generateExprStr(opcodeInfo.expressions).replace('(00)', '(01)')} `);
-               fs.writeSync(fd, `(0001) -> ${opcodeInfo.switches[0][1].target.toString(16).padStart(8, '0')} `);
-               fs.writeSync(fd, `(${opcodeInfo.switches[0][1].value.toString(16).padStart(8, '0')})\r\n`);
+               fs.writeSync(fd, `(0001) -> ${makeHexPad16(opcodeInfo.switches[0][1].target)} `);
+               fs.writeSync(fd, `(${makeHexPad16(opcodeInfo.switches[0][1].value as number)})\r\n`);
                break;
             case MetaOpcode.Switch:
                fs.writeSync(fd, '_switch\r\n');
                fs.writeSync(fd, `switch_varop ${generateExprStr(opcodeInfo.expressions)} 0014 (00)\r\n`);
                for (const [_case, target] of opcodeInfo.switches) {
                   fs.writeSync(fd, `27 -> ${generateExprStr([_case])} `);
-                  fs.writeSync(fd, `${target.target.toString(16).padStart(8, '0')} `);
-                  fs.writeSync(fd, `(${target.value.toString(16).padStart(8, '0')})\r\n`);
+                  fs.writeSync(fd, `${makeHexPad16(target.target)} `);
+                  fs.writeSync(fd, `(${makeHexPad16(target.value as number)})\r\n`);
                }
                fs.writeSync(fd, '\r\n');
                break;
@@ -161,8 +162,8 @@ export function dumpCodeLegacy(opcodeInfos: OpcodeInfo[], outputPath: string): v
                break;
             case MetaOpcode.MUnk0D: {
                const a1 = opcodeInfo.expressions[0].value;
-               const a2 = (<number>opcodeInfo.expressions[1].value & 0xFF).toString(16).padStart(2, '0');
-               const a3 = (<number>opcodeInfo.expressions[1].value >>> 8).toString(16).padStart(2, '0');
+               const a2 = makeHexPad2(<number>opcodeInfo.expressions[1].value & 0xFF);
+               const a3 = makeHexPad2(<number>opcodeInfo.expressions[1].value >>> 8);
                fs.writeSync(fd, `l_unk0d ${a1} ${a2} ${a3}\r\n`);
                break;
             }
@@ -172,14 +173,14 @@ export function dumpCodeLegacy(opcodeInfos: OpcodeInfo[], outputPath: string): v
             case MetaOpcode.MUnk13:
             case MetaOpcode.MUnk06:
             case MetaOpcode.MUnk15: {
-               let code = `l_unk${opcodeInfo.code.toString(16).padStart(2, '0')} `;
+               let code = `l_unk${makeHexPad2(opcodeInfo.code)} `;
                code += generateExprStr(opcodeInfo.expressions);
                fs.writeSync(fd, code.trimRight());
                fs.writeSync(fd, '\r\n');
                break;
             }
             case MetaOpcode.CallText:
-               fs.writeSync(fd, `text ${opcodeInfo.switches[0][1].value.toString(16).padStart(2, '0')}\r\n`);
+               fs.writeSync(fd, `text ${makeHexPad2(opcodeInfo.switches[0][1].value as number)}\r\n`);
                printTextualCode(fd, opcodeInfo.textualOpcodeInfos);
                fs.writeSync(fd, '\r\n');
                break;
@@ -423,8 +424,8 @@ function tryPrintPrettierVarOp(fd: number, opcodeInfo: OpcodeInfo): boolean {
          seekSync(fd, -11, constants.SEEK_CUR);
          fs.writeSync(fd, ': ');
          fs.writeSync(fd, `setMonoColorOverlayFadeOutDuration VAR_c0_${arr[1]}\r\n`);
-         fs.writeSync(fd, `[${(opcodeInfo.position + 10).toString(16).padStart(8, '0')}]`);
-         fs.writeSync(fd, [arr[2], arr[3], arr[4]].map(e => e.toString(16).padStart(2, '0')).join(' '));
+         fs.writeSync(fd, `[${makeHexPad16(opcodeInfo.position + 10)}]`);
+         fs.writeSync(fd, [arr[2], arr[3], arr[4]].map(e => makeHexPad2(e)).join(' '));
          fs.writeSync(fd, ': fadeOutMonoColorOverlay\r\n');
          break;
       }
@@ -473,7 +474,7 @@ function printTextualCode(fd: number, opcodeInfos: TextualOpcodeInfo[]): void {
          case TextualOpcodeType.Command:
             if (opcodeInfo.code === TextualOpcode.End)
                break;
-            else if (opcodeInfo.code === TextualOpcode.OpenChoiceBox) {
+            else if (opcodeInfo.code === TextualOpcode.Choice) {
                fs.writeSync(fd, `{choice 00 ${opcodeInfo.expressions[0].value.toString(16).padStart(4, '0')} `);
                for (const [cond, str] of opcodeInfo.choices) {
                   const prefix = !cond ? '' : `[cond ${generateExprStr([cond])} 14 (00)]`;
@@ -481,8 +482,8 @@ function printTextualCode(fd: number, opcodeInfos: TextualOpcodeInfo[]): void {
                }
                fs.writeSync(fd, '}');
             }
-            else if (opcodeInfo.code === TextualOpcode.ToNextPage) {
-               fs.writeSync(fd, `{nextPage ${opcodeInfo.expressions[0].value.toString(16).padStart(2, '0')}}`);
+            else if (opcodeInfo.code === TextualOpcode.Next) {
+               fs.writeSync(fd, `{nextPage ${makeHexPad2(opcodeInfo.expressions[0].value as number)}}`);
             }
             else {
                const code = `${TextualOpcodeMap[opcodeInfo.code]} ${generateExprStr(opcodeInfo.expressions)}`;

@@ -39,7 +39,7 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
          opcodeInfo.type = curOpcodeType = TextualOpcodeType.Command;
          switch (curByteCode) {
             case TextualOpcode.End:
-            case TextualOpcode.WaitInteraction:
+            case TextualOpcode.Wait:
             case TextualOpcode.ClearText:
                break;
             case TextualOpcode.Delay:
@@ -47,19 +47,19 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                   readExpression(reader, 'duration', true),
                );
                break;
-            case TextualOpcode.AppendText: {
+            case TextualOpcode.Append: {
                const expr = readExpression(reader, 'unk', true); // always zero
                if (expr.value !== 0)
                   throw Error(`Expected a zero-value expression, got value ${expr.value}.`);
                break;
             }
-            case TextualOpcode.OpenChoiceBox: {
+            case TextualOpcode.Choice: {
                skipPadding(reader, 1);
                opcodeInfo.expressions.push(
                   readRawInt16Expr(reader, 'id'),
                );
-               let marker = skipMarker(reader, 1, TextualOpcode.OpenChoiceBox);
-               while (marker === TextualOpcode.OpenChoiceBox) {
+               let marker = skipMarker(reader, 1, TextualOpcode.Choice);
+               while (marker === TextualOpcode.Choice) {
                   const type = reader.readByte();
                   if (type === 1)
                      opcodeInfo.choices.push([
@@ -81,19 +81,19 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
             }
             case TextualOpcode.WaitVoice:
                break;
-            case TextualOpcode.PlayVoice:
+            case TextualOpcode.Voice:
                opcodeInfo.expressions.push(
                   readCStringExpr(reader, 'voice name'),
                );
                break;
             case TextualOpcode.Mark:
                break;
-            case TextualOpcode.ToNextPage:
+            case TextualOpcode.Next:
                opcodeInfo.expressions.push(
                   readRawByteExpr(reader, 'unk'),
                );
                break;
-            case TextualOpcode.MarkBigChar:
+            case TextualOpcode.Big:
                break;
             default:
                opcodeInfo.type = curOpcodeType = TextualOpcodeType.Text;
@@ -109,7 +109,7 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                if (c1 === TextualOpcode.End) {
                   throw Error('Unexpected zero byte when reading text.');
                }
-               if (c1 === TextualOpcode.PutNewLine) {
+               if (c1 === TextualOpcode.NewLine) {
                   text += '\n';
                   shouldBackwardOne = false;
                   break;

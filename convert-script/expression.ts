@@ -1,3 +1,6 @@
+import { Opcode } from './opcode';
+import { ARGUMENT_MAP } from './write/argument-map';
+
 export const enum ExpressionType {
    Operator, Const, Config, RGB, Variable, FunctionCall,
 }
@@ -19,9 +22,6 @@ export class Expression {
       return Object.assign(this, initialObj);
    }
 
-   /** Resolve ordinal number into bgm file name.
-    * 
-    * Note: This method mutates the expression directly. */
    mapImage(images: string[]): Expression {
       if (this.type !== ExpressionType.Const)
          throw Error(`Only number expression can be used as an ordinal number, exprName '${this.exprName}'.`);
@@ -35,9 +35,6 @@ export class Expression {
       return this;
    }
 
-   /** Resolve ordinal number into bgm file name.
-    * 
-    * Note: This method mutates the expression directly. */
    mapMusic(): Expression {
       if (this.type !== ExpressionType.Const)
          throw Error(`Only number expression can be used as an ordinal number, exprName '${this.exprName}'.`);
@@ -59,6 +56,15 @@ export class Expression {
       if (this.target == null)
          throw Error(`Ordinal number is out-of-range, exprName '${this.exprName}'`);
 
+      return this;
+   }
+
+   mapArgument(opcode: Opcode, ordinal: number): Expression {
+      if (this.type !== ExpressionType.Const)
+         throw Error(`Only number expression can be used to map argument, exprName '${this.exprName}'.`);
+      if (typeof (this.value) !== 'number')
+         throw Error(`Only number expression can be used to map argument, exprName '${this.exprName}'.`);
+      this.name = ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
       return this;
    }
 }

@@ -6,6 +6,7 @@ import { skipMarker, skipPadding } from './skip-padding';
 import { addContext } from '../../utils/error';
 import { goAroundSpecialGotoIf } from './work-around';
 import { ExpressionType } from '../expression';
+import { ENUM_MAP } from '../write/variable_map';
 
 type Params = {
    bytecodes: Buffer,
@@ -37,7 +38,7 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
          switch (curByteCode) {
             case MetaOpcode.NoOp:
                break;
-            case MetaOpcode.VarOp:
+            case MetaOpcode.VarOp: {
                opcodeInfo.expressions.push(
                   readExpression(reader, 'left operand'),
                   readExpression(reader, 'assigment operator', true, 1),
@@ -53,7 +54,13 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                }
                else if (opcodeInfo.expressions[2].type !== ExpressionType.Config)
                   skipPadding(reader, 2);
+
+               const assignee = opcodeInfo.expressions[2];
+               const variable = opcodeInfo.expressions[0];
+               if (assignee.type === ExpressionType.Const)
+                  assignee.name = ENUM_MAP[variable.name]?.[assignee.value as number] ?? assignee.name;
                break;
+            }
             case MetaOpcode.Command:
                opcodeInfo.type = curOpcodeType = OpcodeType.Opcode;
                parseCommand();
@@ -86,6 +93,8 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                break;
             case MetaOpcode.Switch: {
                opcodeInfo.expressions.push(readExpression(reader, 'expression to test', true, 1));
+               const expr = opcodeInfo.expressions[0];
+               const enumConfig = ENUM_MAP[expr.name] ?? {};
                let marker = skipMarker(reader, 2, 0x2700);
                opcodeInfo.switches = [];
                while (marker === 0x2700) {
@@ -93,6 +102,8 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                      readExpression(reader, 'case expression', true),
                      readRawInt16Expr(reader, 'jump target').mapOffset(labels),
                   ]);
+                  const cond = opcodeInfo.switches[opcodeInfo.switches.length - 1][0];
+                  cond.name = enumConfig[cond.value as number] ?? cond.name;
                   marker = reader.readUInt16();
                }
                reader.pos -= 2;
@@ -226,9 +237,11 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                   break;
                case Opcode.RemoveFG3:
                   opcodeInfo.expressions.push(
-                     readExpression(reader, 'sum of ids'),
-                     readRawInt16Expr(reader, 'unk'),
-                     readExpression(reader, 'mode', true),
+                     readExpression(reader, 'sum of ids').mapArgument(curByteCode, 0),
+                  );
+                  skipMarker(reader, 2, 0x0004);
+                  opcodeInfo.expressions.push(
+                     readExpression(reader, 'mode', true).mapArgument(curByteCode, 1),
                   );
                   break;
                case Opcode.SetFGOrder:
@@ -240,8 +253,8 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                   break;
                case Opcode.AffectFG:
                   opcodeInfo.expressions.push(
-                     readExpression(reader, 'fg id', true),
-                     readExpression(reader, 'effect', true),
+                     readExpression(reader, 'fg id', true).mapArgument(curByteCode, 0),
+                     readExpression(reader, 'effect', true).mapArgument(curByteCode, 1),
                   );
                   break;
                case Opcode.LoadFG3:
@@ -292,7 +305,7 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                case Opcode.StartAnim:
                case Opcode.CloseAnim:
                   opcodeInfo.expressions.push(
-                     readExpression(reader, 'animId', true),
+                     readExpression(reader, 'animId', true).mapArgument(curByteCode, 0),
                   );
                   break;
                case Opcode.MarkLocationId:
@@ -365,7 +378,7 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                   break;
                case Opcode.SetDialogColor:
                   opcodeInfo.expressions.push(
-                     readExpression(reader, 'colorCode', true),
+                     readExpression(reader, 'colorCode', true).mapArgument(curByteCode, 0),
                   );
                   break;
                default:
