@@ -10,7 +10,7 @@
       "esModuleInterop": true,
       "incremental": true,
       "newLine": "lf",
-      "outDir": ".build",
+      "outDir": ".build"
    },
    "exclude": [
       "node_modules/*",

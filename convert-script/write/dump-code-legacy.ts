@@ -59,9 +59,9 @@ const OpcodeMap = {
 
 const TextualOpcodeMap = {
    [TextualOpcode.Wait]: 'waitForClick',
-   [TextualOpcode.ClearText]: 'clearText',
+   [TextualOpcode.Clear]: 'clearText',
    [TextualOpcode.Delay]: 'delay',
-   [TextualOpcode.Append]: 'appendText',
+   [TextualOpcode.Print]: 'appendText',
    [TextualOpcode.Choice]: 'choice',
    [TextualOpcode.WaitVoice]: 'waitForSound',
    [TextualOpcode.Voice]: 'sound',

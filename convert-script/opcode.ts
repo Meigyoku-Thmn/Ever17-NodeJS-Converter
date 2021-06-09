@@ -111,15 +111,15 @@ export const enum TextualOpcode {
    End = 0x00,
    NewLine = 0x01,
    Wait = 0x02,
-   ClearText = 0x03,
+   Clear = 0x03,
    Delay = 0x04,
-   Append = 0x05,
+   Print = 0x05, // Print text?
    Choice = 0x0b,
    WaitVoice = 0x0c,
    Voice = 0x0d,
-   Mark = 0x0e,
+   Mark = 0x0e, // Mark the last point that you can save
    Next = 0x10, // Turn on/off some text states?
-   Big = 0x11, // Make text big
+   Big = 0x11, // Switch to big character state?
 }
 
 const _TextualOpcode = eval('TextualOpcode');

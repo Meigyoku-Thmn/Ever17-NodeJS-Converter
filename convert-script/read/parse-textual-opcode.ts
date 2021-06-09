@@ -40,14 +40,14 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
          switch (curByteCode) {
             case TextualOpcode.End:
             case TextualOpcode.Wait:
-            case TextualOpcode.ClearText:
+            case TextualOpcode.Clear:
                break;
             case TextualOpcode.Delay:
                opcodeInfo.expressions.push(
                   readExpression(reader, 'duration', true),
                );
                break;
-            case TextualOpcode.Append: {
+            case TextualOpcode.Print: {
                const expr = readExpression(reader, 'unk', true); // always zero
                if (expr.value !== 0)
                   throw Error(`Expected a zero-value expression, got value ${expr.value}.`);
