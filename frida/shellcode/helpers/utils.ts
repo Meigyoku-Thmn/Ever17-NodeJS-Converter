@@ -3,13 +3,6 @@ export function keep<T extends unknown[]>(...data: T): T {
    data.forEach(datum => keeper.push(datum));
    return data;
 }
-/**
- * @param width Width in pixels 
- * @param bpp BITS per pixel
- */
-export function calcStride(width: number, bpp: number): number {
-   return ((((width * bpp) + 31) & ~31) >> 3);
-}
 
 export function str(text: string): NativePointer {
    return Memory.allocUtf8String(text);
