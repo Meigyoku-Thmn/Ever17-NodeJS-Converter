@@ -1,23 +1,19 @@
 {
    "compilerOptions": {
-      "module": "CommonJS",
+      "module": "ES6",
       "noImplicitAny": false,
       "removeComments": false,
       "preserveConstEnums": true,
+      "moduleResolution": "Node",
       "inlineSourceMap": true,
       "target": "ES2017",
-      "resolveJsonModule": true,
-      "moduleResolution": "Node",
-      "esModuleInterop": true,
-      "incremental": true,
       "strict": true,
-      "strictPropertyInitialization": false,
       "strictNullChecks": false,
+      "skipLibCheck": true,
       "newLine": "lf",
-      "outDir": ".build"
+      "outDir": ".frida-build"
    },
    "exclude": [
-      "node_modules/*",
-      "frida/shellcode/*"
+      "node_modules/*"
    ]
 }

@@ -1,131 +1,162 @@
 import fs from 'fs';
 import path from 'path';
+import { spawnSync } from 'child_process';
 import * as frida from 'frida';
 import { Session, ScriptMessageHandler, Script, ScriptRuntime, Message, MessageType } from 'frida';
-
-console.log('Remember to build your shellcode!');
-function readJSON(path: string) {
-   return JSON.parse(fs.readFileSync(path, 'utf8'));
-}
-const PACKAGE_JSON = readJSON('package.json');
-const MOD_PATH = path.join(__dirname, '../frida-built/shellcode.js');
-const SCRIPT_PATH = PACKAGE_JSON.scriptPath;
-const TARGET_PATH = PACKAGE_JSON.targetPath;
+import { File, BinaryReader, SeekOrigin } from 'csbinary';
+import { BufferTraverser } from '../utils/buffer-wrapper';
+import { getNewestStats, nameof } from '../utils/file-system';
+import ShellCodeConfig from './shellcode/tsconfig.json';
 
 type Metadata = Record<number, { fileSize: number, fileName: string }>;
 
+const TargetPath = process.argv[2];
+const ScriptPath = path.join(path.dirname(TargetPath), 'script.dat');
+const ShellCodeDir = path.join(__dirname, 'shellcode');
+const ShellCodePath = path.join(ShellCodeDir, ShellCodeConfig.compilerOptions.outDir, 'shellcode.js');
+const ShellCodeConfigPath = path.join(ShellCodeDir, 'tsconfig.json');
+
 (async function main() {
-   const metadata = loadScriptMetadata();
-   const pid = await frida.spawn(TARGET_PATH);
-   const session = await frida.attach(pid);
-
-   let script: Script;
    try {
-      script = await loadScript(session, messageEvent);
+      const metadata = loadScriptMetadata();
+      const pid = await frida.spawn(TargetPath);
+      const session = await frida.attach(pid);
+
+      let script: Script;
+      try {
+         script = await loadScript(session, (message) => onMessageReceived(script, metadata, message));
+      } catch (err) {
+         console.error(err);
+         await frida.kill(pid);
+         console.log('Target process was terminated.');
+         process.exit();
+      }
+      await script.load();
+      await frida.resume(pid);
+
+      process.on('SIGINT', () => {
+         frida.kill(pid);
+         console.log('Target process was terminated.');
+      });
+
+      session.detached.connect(() => console.log('Session detached.'));
    } catch (err) {
+      console.error('Unexpected error occured:');
       console.error(err);
-      await frida.kill(pid);
-      console.log('Target process was terminated.');
-      process.exit();
    }
-   await script.load();
-   await frida.resume(pid);
+})();
 
-   process.on('SIGINT', () => {
-      frida.kill(pid);
-      console.log('Target process was terminated.');
-   });
-
-   session.detached.connect(() => console.log('Session detached.'));
-   function messageEvent(message: Message) {
-      if (message.type === MessageType.Error) {
-         console.error(message.stack);
-         return;
-      }
-      if (message.type !== MessageType.Send)
-         return;
-      switch (message.payload.command) {
-         case 'GetScriptMetadata':
-            console.log('Received GetScriptMetadata command');
-            script.post({ type: 'ScriptMetadata', message: metadata });
-            break;
-         case 'GetUnitData':
-            console.log('Received GetUnitData command');
-            try {
-               const unitBuf = fs.readFileSync('base_script/en/' + message.payload.unitName);
-               injectBufferByConfig(unitBuf, message.payload.unitName);
-               script.post({ type: 'UnitData' }, unitBuf);
-            }
-            catch (e) {
-               script.post({ type: 'UnitData' }, null);
-               throw e;
-            }
-            break;
-      }
+function onMessageReceived(script: Script, metadata: Metadata, message: Message) {
+   if (message.type === MessageType.Error) {
+      console.error(message.stack);
+      return;
    }
-})().catch(e => console.error(e));
+   if (message.type !== MessageType.Send)
+      return;
+   const requestCmd = message.payload.command as string;
+   const responseCmd = requestCmd.replace('Get', '');
+   console.log(`Received ${requestCmd} request.`);
+   switch (requestCmd) {
+      case 'GetScriptMetadata':
+         script.post({ type: responseCmd, message: metadata });
+         break;
+      case 'GetScriptData':
+         try {
+            const scriptData = fs.readFileSync('base_script/en/' + message.payload.recordName);
+            patchScriptByConfig(scriptData, message.payload.recordName);
+            script.post({ type: responseCmd }, scriptData);
+         }
+         catch (e) {
+            script.post({ type: responseCmd }, null);
+            throw e;
+         }
+         break;
+      default:
+         console.log('Unknown request.');
+   }
+}
 
 function loadScriptMetadata(): Metadata {
    const metadata: Metadata = {};
-   const fd = fs.openSync(SCRIPT_PATH, 'r');
-   const fileCountBuffer = Buffer.alloc(4);
-   fs.readSync(fd, fileCountBuffer, 0, 4, 4);
-   const fileCount = fileCountBuffer.readUInt32LE(0);
+   const input = new BinaryReader(File(fs.openSync(ScriptPath, 'r')), 'ascii');
+
+   input.file.seek(4, SeekOrigin.Begin);
+   const fileCount = input.readUInt32();
    const metadataSize = 32 * fileCount;
-   const fileInfoBuf = Buffer.alloc(metadataSize);
-   fs.readSync(fd, fileInfoBuf, 0, metadataSize, 16);
-   let offset = 0;
+
+   input.file.seek(16, SeekOrigin.Begin);
+   const fileInfoBuf = new BufferTraverser(input.readBytes(metadataSize));
+
+   input.close();
+
    do {
-      let fileOffset = fileInfoBuf.readUInt32LE(offset); offset += 4;
-      fileOffset = fileOffset + 16 + metadataSize;
-      let fileSize = fileInfoBuf.readUInt32LE(offset); offset += 4;
-      fileSize = fileSize / 2;
-      let fileName = fileInfoBuf.toString('ascii', offset, offset + 24); offset += 24;
-      fileName = fileName.replace(/\0/g, '');
+      const fileOffset = fileInfoBuf.readUInt32() + + 16 + metadataSize;
+      const fileSize = fileInfoBuf.readUInt32() >>> 1;
+      const fileName = fileInfoBuf.readRawASCII(24).replace(/\0/g, '');
       metadata[fileOffset] = { fileSize, fileName };
-   } while (offset < metadataSize);
-   fs.closeSync(fd);
+   } while (!fileInfoBuf.eof());
+
    return metadata;
 }
 
 async function loadScript(session: Session, event: ScriptMessageHandler): Promise<Script> {
-   const scriptContent = fs.readFileSync(MOD_PATH, 'utf8');
+   console.time(nameof({ loadScript }));
+   if (fs.statSync(ShellCodePath).mtimeMs < (await getNewestStats(ShellCodeDir, '.ts')).mtimeMs) {
+      console.log('Start building shellcode.');
+      const processRs = spawnSync('npx', [
+         'tsc-bundle',
+         `"${ShellCodeConfigPath}"`,
+         `--outFile "${ShellCodePath}"`,
+      ], {
+         shell: true,
+         stdio: ['inherit', 'inherit', 'inherit'],
+         windowsVerbatimArguments: true,
+      });
+      if (processRs.error)
+         throw processRs.error;
+   }
+   const scriptContent = fs.readFileSync(ShellCodePath, 'utf8');
    const script = await session.createScript(scriptContent, {
-      name: MOD_PATH.replace(/\.[^/.]+$/, ''),
+      name: ShellCodePath.replace(/\.[^/.]+$/, ''),
       runtime: ScriptRuntime.Default
    });
    script.message.connect(event);
+   console.timeEnd(nameof({ loadScript }));
    return script;
 }
 
-function injectBufferByConfig(buf: Buffer, name: string): void {
-   // please don't use characters outside ascii table, this is just for reverse engineering
-   const config = readJSON('./scr_mod.json');
-   const entryPoint = buf.readUInt32LE(12);
-   let hookName = config.fileRedirect[name]?.toString().trim() as string;
+function patchScriptByConfig(scriptData: Buffer, name: string): void {
+   const buf = new BufferTraverser(scriptData);
+   const config = JSON.parse(fs.readFileSync('./scr_mod.json', 'utf8'));
+   buf.pos += 12;
+   const entryPoint = buf.readUInt32();
+   let hookName = (config.fileRedirect[name] as string)?.toString().trim();
    if (hookName?.length === 0) {
       // write to entrypoint a command that jumps to hookName file
       hookName = path.basename(hookName, '.scr').toUpperCase();
-      buf.writeUInt8(0x10, entryPoint);
-      buf.writeUInt8(0x01, entryPoint + 1);
-      buf.write(hookName, entryPoint + 2, 'utf8');
-      buf.writeUInt8(0x00, entryPoint + 2 + hookName.length);
+      buf.pos = entryPoint;
+      buf.writeByte(0x10); // MetaOpcode.Command
+      buf.writeByte(0x01); // Opcode.ToFile
+      buf.writeRawASCII(hookName); // null-terminated string
+      buf.writeByte(0x00);
    }
    const newEntryPoint = parseInt(config.entryPointRedirect[name]);
    // change entrypoint to another point in the file
-   if (typeof newEntryPoint === 'number') {
-      buf.writeUInt32LE(newEntryPoint, 12);
-   }
-   // too lazy to check for error
-   const overwriteArr = config.overwrite[name];
-   if (overwriteArr != null && Array.isArray(overwriteArr)) {
+   buf.pos = 12;
+   buf.writeUInt32(newEntryPoint);
+
+   const overwriteArr = config.overwrite[name] as {
+      offset: string;
+      shift: string;
+      content: string;
+   }[];
+   if (Array.isArray(overwriteArr)) {
       // patch some bytecodes
       for (const item of overwriteArr) {
          const offset = parseInt(item.offset) + parseInt(item.shift);
+         buf.pos = offset;
          const byteArr = item.content.split(' ').filter(e => e.trim().length > 0).map(e => parseInt(e, 16));
-         byteArr.forEach((e, i) => {
-            buf.writeUInt8(e, offset + i);
-         });
+         byteArr.forEach(e => buf.writeByte(e));
       }
    }
 }

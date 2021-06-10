@@ -1,6 +1,6 @@
-global['keeper'] = [];
+const keeper = [];
 export function keep<T extends unknown[]>(...data: T): T {
-   data.forEach(datum => global['keeper'].push(datum));
+   data.forEach(datum => keeper.push(datum));
    return data;
 }
 /**
@@ -39,16 +39,16 @@ export function wrapCdeclInStdcall(func: NativeCallback, numArgs: number): Nativ
    return wrapperFunc;
 }
 
-export function sendCommand(command: string, unitName?: string): { message: unknown, data: ArrayBuffer } {
+export function sendCommand(command: string, recordName?: string): { message: unknown, data: ArrayBuffer } {
    let message: unknown;
    let data: ArrayBuffer;
-   send({ command: 'Get' + command, unitName });
+   send({ command: 'Get' + command, recordName });
    recv(command, (_message, _data) => { message = _message; data = _data; }).wait();
    return { message, data };
 }
 
-export function getUnitData(unitName: string): ArrayBuffer {
-   return sendCommand('UnitData', unitName).data;
+export function getScriptRecord(recordName: string): ArrayBuffer {
+   return sendCommand('ScriptData', recordName).data;
 }
 
 export function getLastError(lastResult: SystemFunctionResult): number {

@@ -2,3 +2,4 @@ node_modules
 .build
 .ts-node
 .output
+.frida-build

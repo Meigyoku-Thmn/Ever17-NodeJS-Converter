@@ -1,1 +1,1 @@
-import './frida';
+import './frida'; 

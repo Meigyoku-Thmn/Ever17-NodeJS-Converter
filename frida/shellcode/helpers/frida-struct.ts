@@ -5,7 +5,7 @@ type UnsignedBigNumField = { name: 'uint64' };
 type FloatingPointNumberField = { name: 'float' | 'double' };
 type StringField = { name: 'str' | 'wstr' | 'utf8_str', length: number };
 type PointerField = { name: 'pointer' };
-type BooleanField = { name: 'bool32' | 'bool8' }
+type BooleanField = { name: 'bool32' | 'bool8' };
 
 type StructScalarField =
    BooleanField | SignedBigNumField | UnsignedBigNumField | SignedNumberField | UnsignedNumberField | FloatingPointNumberField | StringField | PointerField;
@@ -53,81 +53,101 @@ type StructInstance<T extends Struct> = StructInstanceData<T> & {
    getPtr: () => NativePointer,
    getSize: () => number,
 };
-type TypeInfo = {
+type NativeType = string | boolean | number | UInt64 | Int64 | NativePointerValue;
+type FieldContext = { offset: number; ptr: NativePointer; length: number };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TypeInfo<T = any> = {
    size: (this: FieldContext) => number;
-   get: (this: FieldContext) => unknown;
-   set: (this: FieldContext, value: unknown) => unknown;
+   get: (this: FieldContext) => NativeType;
+   set: (this: FieldContext, value: T) => NativePointer;
 };
-type FieldContext = { offset: number; ptr: NativePointer; length: number }
+
 const TypeMap = new Map<StructScalarField['name'], TypeInfo>([
    ['bool32', {
-      size: () => 4, get() { return !!this.ptr.add(this.offset).readU32(); },
+      size: () => 4,
+      get() { return !!this.ptr.add(this.offset).readU32(); },
       set(value: boolean) { return this.ptr.add(this.offset).writeU32(value ? 1 : 0); }
    }],
    ['bool8', {
-      size: () => 1, get() { return !!this.ptr.add(this.offset).readU8(); },
+      size: () => 1,
+      get() { return !!this.ptr.add(this.offset).readU8(); },
       set(value: boolean) { return this.ptr.add(this.offset).writeU8(value ? 1 : 0); }
    }],
    ['uint8', {
-      size: () => 1, get() { return this.ptr.add(this.offset).readU8(); },
+      size: () => 1,
+      get() { return this.ptr.add(this.offset).readU8(); },
       set(value: number | UInt64) { return this.ptr.add(this.offset).writeU8(value); }
    }],
    ['int8', {
-      size: () => 1, get() { return this.ptr.add(this.offset).readS8(); },
+      size: () => 1,
+      get() { return this.ptr.add(this.offset).readS8(); },
       set(value: number | Int64) { return this.ptr.add(this.offset).writeS8(value); }
    }],
    ['uint16', {
-      size: () => 2, get() { return this.ptr.add(this.offset).readU16(); },
+      size: () => 2,
+      get() { return this.ptr.add(this.offset).readU16(); },
       set(value: number | UInt64) { return this.ptr.add(this.offset).writeU16(value); }
    }],
    ['int16', {
-      size: () => 2, get() { return this.ptr.add(this.offset).readS16(); },
+      size: () => 2,
+      get() { return this.ptr.add(this.offset).readS16(); },
       set(value: number | Int64) { return this.ptr.add(this.offset).writeS16(value); }
    }],
    ['uint32', {
-      size: () => 4, get() { return this.ptr.add(this.offset).readU32(); },
+      size: () => 4,
+      get() { return this.ptr.add(this.offset).readU32(); },
       set(value: number | UInt64) { return this.ptr.add(this.offset).writeU32(value); }
    }],
    ['int32', {
-      size: () => 4, get() { return this.ptr.add(this.offset).readS32(); },
+      size: () => 4,
+      get() { return this.ptr.add(this.offset).readS32(); },
       set(value: number | Int64) { return this.ptr.add(this.offset).writeS32(value); }
    }],
    ['uint64', {
-      size: () => 8, get() { return this.ptr.add(this.offset).readU64(); },
+      size: () => 8,
+      get() { return this.ptr.add(this.offset).readU64(); },
       set(value: number | UInt64) { return this.ptr.add(this.offset).writeU64(value); }
    }],
    ['int64', {
-      size: () => 8, get() { return this.ptr.add(this.offset).readS64(); },
+      size: () => 8,
+      get() { return this.ptr.add(this.offset).readS64(); },
       set(value: number | Int64) { return this.ptr.add(this.offset).writeS64(value); }
    }],
    ['float', {
-      size: () => 4, get() { return this.ptr.add(this.offset).readFloat(); },
+      size: () => 4,
+      get() { return this.ptr.add(this.offset).readFloat(); },
       set(value: number) { return this.ptr.add(this.offset).writeFloat(value); }
    }],
    ['double', {
-      size: () => 8, get() { return this.ptr.add(this.offset).readDouble(); },
+      size: () => 8,
+      get() { return this.ptr.add(this.offset).readDouble(); },
       set(value: number) { return this.ptr.add(this.offset).writeDouble(value); }
    }],
    // this can be anything
    ['pointer', {
-      size: () => Process.pointerSize, get() { return this.ptr.add(this.offset).readPointer(); },
+      size: () => Process.pointerSize,
+      get() { return this.ptr.add(this.offset).readPointer(); },
       set(value: NativePointerValue) { return this.ptr.add(this.offset).writePointer(value); }
    }],
    // fixed-length string
    ['str', {
-      size() { return this.length; }, get() { return this.ptr.add(this.offset).readAnsiString(this.length); },
+      size() { return this.length; },
+      get() { return this.ptr.add(this.offset).readAnsiString(this.length); },
       set(value: string) { return this.ptr.add(this.offset).writeAnsiString(value); }
    }],
    ['utf8_str', {
-      size() { return this.length; }, get() { return this.ptr.add(this.offset).readUtf8String(this.length); },
+      size() { return this.length; },
+      get() { return this.ptr.add(this.offset).readUtf8String(this.length); },
       set(value: string) { return this.ptr.add(this.offset).writeUtf8String(value); }
    }],
    ['wstr', {
-      size() { return this.length * 2; }, get() { return this.ptr.add(this.offset).readUtf16String(this.length); },
+      size() { return this.length * 2; },
+      get() { return this.ptr.add(this.offset).readUtf16String(this.length); },
       set(value: string) { return this.ptr.add(this.offset).writeUtf16String(value); }
    }],
 ]);
-// I assume the runtime preserves the order of properties in object, almost every Javascript Engines do this since ES2015
+// I assume the runtime preserves the order of properties in object.
+// Almost every Javascript Engines do this since ES2015.
 export function createCStruct<T extends Struct>(protoObj: T, address: NativePointer = null): StructInstance<T> {
    let structSize = 0;
    let innerStructSize = 0;

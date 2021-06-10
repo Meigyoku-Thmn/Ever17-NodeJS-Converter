@@ -1,10 +1,10 @@
-import { createCStruct } from './frida-struct';
+import { createCStruct } from './helpers/frida-struct';
 import {
-   keep, wrapCdeclInStdcall, sendCommand, getUnitData, getLastError, decodeKeystrokeFlags, str, KEY_RELEASED, calcStride
-} from './utils';
+   keep, wrapCdeclInStdcall, sendCommand, getScriptRecord, getLastError, decodeKeystrokeFlags, str, KEY_RELEASED, calcStride
+} from './helpers/utils';
 import {
    CallNextHookEx, DialogBoxParamFunc, LPARAM, LRESULT, DialogBoxParam, SetWindowsHookEx, VK_R, WH_KEYBOARD, WPARAM, SECURITY_ATTRIBUTES, CreatePipe, PROCESS_INFORMATION, STARTUPINFO, STARTF_USESTDHANDLES, CreateProcess, CloseHandle, WaitForSingleObject, INFINITE, GetExitCodeProcess, CreateCompatibleDC, BITMAPINFO, BI_RGB, CreateDIBSection, DIB_RGB_COLORS, SelectObject, BitBlt, SRCCOPY, WriteFile, STARTF_USESHOWWINDOW, GetStdHandle, STD_ERROR_HANDLE, STD_OUTPUT_HANDLE, SetHandleInformation, HANDLE_FLAG_INHERIT, SetBkColor, CLR_INVALID, SetTextColor, TextOut
-} from './winapi';
+} from './helpers/winapi';
 
 console.log('shellcode.js executed.');
 
@@ -26,12 +26,14 @@ console.log('shellcode.js executed.');
    Interceptor.replace(
       ReadBytesFunc.Addr,
       new NativeCallback((_fileName: NativePointer, _buffer: NativePointer, _fileOffset: number, _readSize) => {
-         const [fileName, fileOffset] = [_fileName.readAnsiString(), _fileOffset];
+         const [fileName, fileOffset, readSize] = [_fileName.readAnsiString(), _fileOffset, _readSize];
          if (fileName.endsWith('script.dat')) {
             if (ScriptMetadata != null && ScriptMetadata[fileOffset] != null) {
                const fileMetadata = ScriptMetadata[fileOffset];
-               const buffer = getUnitData(fileMetadata.fileName);
+               const buffer = getScriptRecord(fileMetadata.fileName);
                if (buffer != null) {
+                  if (readSize < buffer.byteLength)
+                     console.warn('Warning: received data is bigger than allocated memory.');
                   _buffer.writeByteArray(buffer);
                   console.log('UnitName: ' + fileMetadata.fileName);
                   return true;
