@@ -86,22 +86,19 @@ let currentFileName: string;
          input.file.seek(firstLabel, SeekOrigin.Begin);
          const bytecodes = input.readBytes(textualScriptOffset - firstLabel);
 
-         if (textualScriptOffset >= fileSize)
-            continue;
-
          const nTextualIndex = (imageOffset - textualScriptOffset) / 4;
          const textualIndexes: number[] = [];
          for (let i = 0; i < nTextualIndex; i++)
             textualIndexes.push(input.readUInt32());
 
-         const nImageIndex = (textualIndexes[0] - imageOffset) / 4;
+         const nImageIndex = ((textualIndexes[0] ?? imageOffset) - imageOffset) / 4;
          const imageIndexes = [];
          for (let i = 0; i < nImageIndex; i++)
             imageIndexes.push(input.readUInt32());
 
-         const textualBytecodes = input.readBytes(imageIndexes[0] - textualIndexes[0]);
+         const textualBytecodes = input.readBytes((imageIndexes[0] ?? 0) - (textualIndexes[0] ?? 0));
 
-         const imageNames = input.readRawString(fileSize - imageIndexes[0])
+         const imageNames = input.readRawString(fileSize - (imageIndexes[0] ?? fileSize))
             .split('\0')
             .filter(e => e.length > 0);
 
