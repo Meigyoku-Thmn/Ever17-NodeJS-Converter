@@ -32,10 +32,11 @@ console.log('shellcode.js executed.');
                const fileMetadata = ScriptMetadata[fileOffset];
                const newBuffer = getScriptRecord(fileMetadata.fileName);
                if (newBuffer != null) {
-                  if (readSize < newBuffer.byteLength)
-                     console.warn('Warning: received data is bigger than allocated memory.');
-                  _buffer.writeByteArray(newBuffer);
                   console.log('Record name: ' + fileMetadata.fileName);
+                  const sizeDiff = newBuffer.byteLength - readSize;
+                  if (sizeDiff > 0)
+                     console.warn(`Warning: received data is ${sizeDiff} byte(s) bigger than allocated memory.`);
+                  _buffer.writeByteArray(newBuffer);
                   return 1;
                }
             }

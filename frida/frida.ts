@@ -127,38 +127,46 @@ async function loadScript(session: Session, event: ScriptMessageHandler): Promis
    return script;
 }
 
-function patchScriptByConfig(scriptData: Buffer, name: string): void {
-   const buf = new BufferTraverser(scriptData);
-   const config = JSON.parse(fs.readFileSync(PatchConfigPath, 'utf8'));
-   buf.pos += 12;
-   const entryPoint = buf.readUInt32();
-   let hookName = (config.fileRedirect[name] as string)?.toString().trim();
-   if (hookName?.length === 0) {
-      // write to entrypoint a command that jumps to hookName file
-      hookName = path.basename(hookName, '.scr').toUpperCase();
-      buf.pos = entryPoint;
-      buf.writeByte(0x10); // MetaOpcode.Command
-      buf.writeByte(0x01); // Opcode.ToFile
-      buf.writeRawASCII(hookName); // null-terminated string
-      buf.writeByte(0x00);
-   }
-   const newEntryPoint = parseInt(config.entryPointRedirect[name]);
-   // change entrypoint to another point in the file
-   buf.pos = 12;
-   buf.writeUInt32(newEntryPoint);
-
-   const overwriteArr = config.overwrite[name] as {
+type ScrMod = {
+   fileRedirects: Record<string, string>,
+   entryPointRedirects: Record<string, string | number>,
+   patches: Record<string, {
       offset: string;
       shift: string;
       content: string;
-   }[];
+   }[]>,
+};
+
+function patchScriptByConfig(_scriptData: Buffer, name: string): void {
+   const scriptData = new BufferTraverser(_scriptData);
+   const config = JSON.parse(fs.readFileSync(PatchConfigPath, 'utf8')) as ScrMod;
+   scriptData.pos += 12;
+   const entryPoint = scriptData.readUInt32();
+   let hookName = config.fileRedirects[name]?.toString().trim();
+   if (hookName?.length > 0) {
+      // write to entrypoint a command that jumps to hookName file
+      hookName = path.basename(hookName, '.scr').toUpperCase();
+      scriptData.pos = entryPoint;
+      scriptData.writeByte(0x10); // MetaOpcode.Command
+      scriptData.writeByte(0x01); // Opcode.ToFile
+      scriptData.writeRawASCII(hookName); // null-terminated string
+      scriptData.writeByte(0x00);
+   }
+   const newEntryPoint = parseInt(config.entryPointRedirects[name] as string);
+   if (!isNaN(newEntryPoint)) {
+      // change entrypoint to another point in the file
+      scriptData.pos = 12;
+      scriptData.writeUInt32(newEntryPoint);
+   }
+
+   const overwriteArr = config.patches[name];
    if (Array.isArray(overwriteArr)) {
       // patch some bytecodes
       for (const item of overwriteArr) {
          const offset = parseInt(item.offset) + parseInt(item.shift);
-         buf.pos = offset;
+         scriptData.pos = offset;
          const byteArr = item.content.split(' ').filter(e => e.trim().length > 0).map(e => parseInt(e, 16));
-         byteArr.forEach(e => buf.writeByte(e));
+         byteArr.forEach(e => scriptData.writeByte(e));
       }
    }
 }

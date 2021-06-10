@@ -1,11 +1,11 @@
 {
-   "fileRedirect": {
+   "fileRedirects": {
       "op00.scr": "s_1a.scr"
    },
-   "entryPointRedirect": {
+   "entryPointRedirects": {
       "s_gg1a.scr": "0x00000e43"
    },
-   "overwrite": {
+   "patches": {
       "s_2dđa.scr": [
          {
             "offset": "0x00000e43",
