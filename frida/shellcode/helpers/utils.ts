@@ -43,7 +43,7 @@ export function sendCommand(command: string, recordName?: string): { message: un
    let message: unknown;
    let data: ArrayBuffer;
    send({ command: 'Get' + command, recordName });
-   recv(command, (_message, _data) => { message = _message; data = _data; }).wait();
+   recv(command, (_payload, _data) => { message = _payload.message; data = _data; }).wait();
    return { message, data };
 }
 

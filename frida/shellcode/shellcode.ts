@@ -28,15 +28,15 @@ console.log('shellcode.js executed.');
       new NativeCallback((_fileName: NativePointer, _buffer: NativePointer, _fileOffset: number, _readSize) => {
          const [fileName, fileOffset, readSize] = [_fileName.readAnsiString(), _fileOffset, _readSize];
          if (fileName.endsWith('script.dat')) {
-            if (ScriptMetadata != null && ScriptMetadata[fileOffset] != null) {
+            if (ScriptMetadata?.[fileOffset] != null) {
                const fileMetadata = ScriptMetadata[fileOffset];
-               const buffer = getScriptRecord(fileMetadata.fileName);
-               if (buffer != null) {
-                  if (readSize < buffer.byteLength)
+               const newBuffer = getScriptRecord(fileMetadata.fileName);
+               if (newBuffer != null) {
+                  if (readSize < newBuffer.byteLength)
                      console.warn('Warning: received data is bigger than allocated memory.');
-                  _buffer.writeByteArray(buffer);
-                  console.log('UnitName: ' + fileMetadata.fileName);
-                  return true;
+                  _buffer.writeByteArray(newBuffer);
+                  console.log('Record name: ' + fileMetadata.fileName);
+                  return 1;
                }
             }
          }
@@ -47,7 +47,7 @@ console.log('shellcode.js executed.');
 
 // -- ALLOW RECORDING GAMEPLAY --
 (function SetUpGameplayRecording() {
-   const outputPath = 'C:/Users/PC/Desktop/ever17_capture.mkv';
+   const outputPath = '%UserProfile%/Desktop/ever17_capture.mkv';
    const width = 800;
    const height = 600;
    const ffmpegCmd = str([

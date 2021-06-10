@@ -15,6 +15,8 @@ const ScriptPath = path.join(path.dirname(TargetPath), 'script.dat');
 const ShellCodeDir = path.join(__dirname, 'shellcode');
 const ShellCodePath = path.join(ShellCodeDir, ShellCodeConfig.compilerOptions.outDir, 'shellcode.js');
 const ShellCodeConfigPath = path.join(ShellCodeDir, 'tsconfig.json');
+const ReplacementScriptDir = 'data/base-script/en';
+const PatchConfigPath = path.join(__dirname, 'scr-mod.json');
 
 (async function main() {
    try {
@@ -62,7 +64,7 @@ function onMessageReceived(script: Script, metadata: Metadata, message: Message)
          break;
       case 'GetScriptData':
          try {
-            const scriptData = fs.readFileSync('base_script/en/' + message.payload.recordName);
+            const scriptData = fs.readFileSync(path.join(ReplacementScriptDir, message.payload.recordName));
             patchScriptByConfig(scriptData, message.payload.recordName);
             script.post({ type: responseCmd }, scriptData);
          }
@@ -127,7 +129,7 @@ async function loadScript(session: Session, event: ScriptMessageHandler): Promis
 
 function patchScriptByConfig(scriptData: Buffer, name: string): void {
    const buf = new BufferTraverser(scriptData);
-   const config = JSON.parse(fs.readFileSync('./scr_mod.json', 'utf8'));
+   const config = JSON.parse(fs.readFileSync(PatchConfigPath, 'utf8'));
    buf.pos += 12;
    const entryPoint = buf.readUInt32();
    let hookName = (config.fileRedirect[name] as string)?.toString().trim();

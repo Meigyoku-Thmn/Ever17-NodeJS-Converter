@@ -7,9 +7,11 @@
       "moduleResolution": "Node",
       "inlineSourceMap": true,
       "target": "ES2017",
+      "lib": [
+         "ES2017"
+      ],
       "strict": true,
       "strictNullChecks": false,
-      "skipLibCheck": true,
       "newLine": "lf",
       "outDir": ".frida-build"
    },
