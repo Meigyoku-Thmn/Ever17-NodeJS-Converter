@@ -46,7 +46,7 @@ export function dumpCode(opcodeInfos: OpcodeInfo[], outputPath: string): void {
       // pseudo-code
       if (opcodeInfo.type === OpcodeType.MetaOpcode) {
          switch (opcodeInfo.code) {
-            case MetaOpcode.NoOp:
+            case MetaOpcode.Pad:
                break;
             case MetaOpcode.VarOp:
                fs.writeSync(fd, `${generateExprStr(opcodeInfo.expressions)}`);

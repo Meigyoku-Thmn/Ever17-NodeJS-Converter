@@ -37,7 +37,7 @@ export const enum TextualOpcodeType {
 }
 
 export const enum MetaOpcode {
-   NoOp = 0x00,
+   Pad = 0x00,
    Goto = 0x07,
    GotoIf = 0x0a,
    Switch = 0x26,

@@ -35,8 +35,9 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
          curByteCode = reader.readByte();
 
          opcodeInfo.type = curOpcodeType = OpcodeType.MetaOpcode;
+
          switch (curByteCode) {
-            case MetaOpcode.NoOp:
+            case MetaOpcode.Pad:
                break;
             case MetaOpcode.VarOp: {
                opcodeInfo.expressions.push(
