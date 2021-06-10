@@ -11,6 +11,7 @@ import ShellCodeConfig from './shellcode/tsconfig.json';
 type Metadata = Record<number, { fileSize: number, fileName: string }>;
 
 const TargetPath = process.argv[2];
+const RecordOutputPath = process.argv[3];
 const ScriptPath = path.join(path.dirname(TargetPath), 'script.dat');
 const ShellCodeDir = path.join(__dirname, 'shellcode');
 const ShellCodePath = path.join(ShellCodeDir, ShellCodeConfig.compilerOptions.outDir, 'shellcode.js');
@@ -50,7 +51,7 @@ const PatchConfigPath = path.join(__dirname, 'scr-mod.json');
 
 function onMessageReceived(script: Script, metadata: Metadata, message: Message) {
    if (message.type === MessageType.Error) {
-      console.error(message.stack);
+      console.error(message);
       return;
    }
    if (message.type !== MessageType.Send)
@@ -59,6 +60,9 @@ function onMessageReceived(script: Script, metadata: Metadata, message: Message)
    const responseCmd = requestCmd.replace('Get', '');
    console.log(`Received ${requestCmd} request.`);
    switch (requestCmd) {
+      case 'GetRecordOutputPath':
+         script.post({ type: responseCmd, message: RecordOutputPath });
+         break;
       case 'GetScriptMetadata':
          script.post({ type: responseCmd, message: metadata });
          break;

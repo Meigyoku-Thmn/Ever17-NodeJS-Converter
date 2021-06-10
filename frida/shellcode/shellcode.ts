@@ -48,15 +48,16 @@ console.log('shellcode.js executed.');
 
 // -- ALLOW RECORDING GAMEPLAY --
 (function SetUpGameplayRecording() {
-   const outputPath = '%UserProfile%/Desktop/ever17_capture.mkv';
+   const outputPath = sendCommand('RecordOutputPath').message as string;
+   console.log(`Using screen recording output path: "${outputPath}".`);
    const width = 800;
    const height = 600;
    const ffmpegCmd = str([
-      'C:/ffmpeg/ffmpeg.exe',
+      'ffmpeg',
       '-hide_banner -loglevel error -y',
       '-f rawvideo -vcodec rawvideo', // no container, no codec for input
       `-video_size ${width}x${height} -pix_fmt bgr24 -framerate 60`,
-      '-i -', // input from stdin
+      '-i pipe:0', // input from stdin
       `-vcodec libxvid -qscale:v 3 -vf "vflip, tpad=stop_mode=clone:stop_duration=1" "${outputPath}"`,
       // duplicate the last frame because ffmpeg and many players don't care about people's experiences
    ].join(' '));
@@ -129,10 +130,7 @@ console.log('shellcode.js executed.');
       if (pipeIsOpen && !recording) {
          rs = CloseHandle(c_stdin_WriteHandle.readU32());
          if (!rs.value) console.log('CloseHandle failed (1), error code: ' + getLastError(rs));
-         rs = CloseHandle(c_stdin_ReadHandle.readU32());
-         if (!rs.value) console.log('CloseHandle failed (2), error code: ' + getLastError(rs));
          c_stdin_WriteHandle.writeU32(0);
-         c_stdin_ReadHandle.writeU32(0);
          console.log('Wait for ffmpeg to exit...');
          WaitForSingleObject(procInfo.hProcess, INFINITE);
          if (!(rs = GetExitCodeProcess(procInfo.hProcess, ffmpegExitCode)).value)
@@ -197,7 +195,7 @@ console.log('shellcode.js executed.');
             TextOut(memDcHdc, 0, 0, str(frameCountStr), frameCountStr.length);
             rs = WriteFile(c_stdin_WriteHandle.readU32(), ppvBits.readPointer(), calcStride(width, 24) * height, dwWritten, NULL);
             if (!rs.value)
-               throw Error('WriteFile faild, error code: ' + getLastError(rs));
+               throw Error('WriteFile failed, error code: ' + getLastError(rs));
          } catch (err) {
             console.error(err.stack);
             recordingFailed = true;
