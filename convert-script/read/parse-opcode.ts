@@ -185,7 +185,7 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                case Opcode.PlayVoice:
                   opcodeInfo.expressions.push(readCStringExpr(reader, 'voice name'));
                   break;
-               case Opcode.Unk09:
+               case Opcode.WaitVoice:
                   break;
                case Opcode.LoadBG:
                   skipPadding(reader, 4);

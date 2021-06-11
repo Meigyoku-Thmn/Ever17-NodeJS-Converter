@@ -47,7 +47,7 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                   readExpression(reader, 'duration', true),
                );
                break;
-            case TextualOpcode.Print: {
+            case TextualOpcode.S: {
                const expr = readExpression(reader, 'unk', true); // always zero
                if (expr.value !== 0)
                   throw Error(`Expected a zero-value expression, got value ${expr.value}.`);
@@ -88,13 +88,17 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                break;
             case TextualOpcode.Mark:
                break;
-            case TextualOpcode.Next:
+            case TextualOpcode.State:
                opcodeInfo.expressions.push(
                   readRawByteExpr(reader, 'unk'),
                );
                break;
-            case TextualOpcode.Big:
+            case TextualOpcode.Big: {
+               // this param decide which size the text should be (not the exact font size)
+               // only 0x03 is usable (the text size is big), other values make the text buggy or just crash the game
+               skipMarker(reader, 1, 0x03);
                break;
+            }
             default:
                opcodeInfo.type = curOpcodeType = TextualOpcodeType.Text;
                parseText(curByteCode);

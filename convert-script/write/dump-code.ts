@@ -96,7 +96,7 @@ export function dumpCode(opcodeInfos: OpcodeInfo[], outputPath: string): void {
             default:
                fs.writeSync(fd, `meta_unk_${makeHexPad2(opcodeInfo.code)}`);
                if (opcodeInfo.expressions.length > 0)
-                  fs.writeSync(fd, generateExprStr(opcodeInfo.expressions));
+                  fs.writeSync(fd, ` ${generateExprStr(opcodeInfo.expressions)}`);
          }
       }
       else if (opcodeInfo.type === OpcodeType.Opcode) {

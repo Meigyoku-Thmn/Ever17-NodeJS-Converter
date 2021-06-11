@@ -37,6 +37,7 @@ export const enum TextualOpcodeType {
 }
 
 export const enum MetaOpcode {
+   // padding between opcodes, not a real opcode, not sure how it's used
    Pad = 0x00,
    Goto = 0x07,
    GotoIf = 0x0a,
@@ -68,7 +69,7 @@ export const enum Opcode {
    StopSFX = 0x06,
    WaitSFX = 0x07,
    PlayVoice = 0x08,
-   Unk09 = 0x09,
+   WaitVoice = 0x09,
    LoadBG = 0x0c,
    RemoveBG = 0x0d,
    LoadFG = 0x0f,
@@ -91,7 +92,6 @@ export const enum Opcode {
    Unk2B = 0x2b,
    UnlockImage = 0x37,
    PlayMovie = 0x39,
-   Unk3A = 0x3a,
    Unk3B = 0x3B,
    Unk3C = 0x3C,
    LoadBGCrop = 0x40,
@@ -108,18 +108,27 @@ export function OpcodeName(value: Opcode): string {
 }
 
 export const enum TextualOpcode {
+   // Mark the end of textual segment, not a real opcode
    End = 0x00,
+   // Yeah, you have to place the new line opcode manually, or the game will eventually crash
    NewLine = 0x01,
    Wait = 0x02,
+   // Clear text, reset text state
    Clear = 0x03,
    Delay = 0x04,
-   Print = 0x05, // Print text?
+   // No visual effect, potentially a command that can change text speed, but it's unused in the game  
+   S = 0x05,
    Choice = 0x0b,
    WaitVoice = 0x0c,
    Voice = 0x0d,
-   Mark = 0x0e, // Mark the last point that you can save
-   Next = 0x10, // Turn on/off some text states?
-   Big = 0x11, // Switch to big character state?
+   // Mark the last point that you can save
+   Mark = 0x0e,
+   // Turn on/off some text states, but has no visual effect, may be the devs had some ideas but couldn't make it?
+   // Perhaps {State 4} is reset state, {State 0} is bold/italic/colored, or another font, and {State 1} revert to normal?
+   // Think about it, a lot of text segments in game script have this, and all of them are important plot points. It makes more sense if they are visually emphasized somehow.
+   State = 0x10,
+   // Switch to big character state (param is always 0x03)
+   Big = 0x11,
 }
 
 const _TextualOpcode = eval('TextualOpcode');
