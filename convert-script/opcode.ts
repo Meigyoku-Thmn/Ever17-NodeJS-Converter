@@ -4,7 +4,7 @@ export class OpcodeInfo {
    position: number;
    bytecodes: Buffer;
    type: OpcodeType;
-   code: MetaOpcode | Opcode;
+   code: MetaOpcode | FlowOpcode | Opcode;
    expressions: Expression[] = [];
    switches: [Expression, Expression][] = [];
    textualOpcodeInfos: TextualOpcodeInfo[] = [];
@@ -29,7 +29,7 @@ export class TextualOpcodeInfo {
 }
 
 export const enum OpcodeType {
-   MetaOpcode, Opcode, UnknownGotoIf,
+   MetaOpcode, FlowOpcode, Opcode, UnknownGotoIf,
 }
 
 export const enum TextualOpcodeType {
@@ -37,28 +37,36 @@ export const enum TextualOpcodeType {
 }
 
 export const enum MetaOpcode {
-   // padding between opcodes, not a real opcode, not sure how it's used
-   Pad = 0x00,
-   Goto = 0x07,
-   GotoIf = 0x0a,
-   Switch = 0x26,
-   CallText = 0xff,
-   VarOp = 0xfe,
+   Flow = 0x00,
    Command = 0x10,
-   Sleep = 0x05,
-   MUnk28 = 0x28,
-   MUnk19 = 0x19,
-   MUnk12 = 0x12,
-   MUnk13 = 0x13,
-   MUnk06 = 0x06,
-   MUnk0D = 0x0d,
-   MUnk15 = 0x15,
+   Text = 0xff,
+   Variable = 0xfe,
 }
 
 const _MetaOpcode = eval('MetaOpcode');
-
 export function MetaOpcodeName(value: MetaOpcode): string {
    return _MetaOpcode[value];
+}
+
+export const enum FlowOpcode {
+   // Mark the end of main opcode section
+   End = 0x00,
+   Sleep = 0x05,
+   Goto = 0x07,
+   GotoIf = 0x0a,
+   MUnk06 = 0x06,
+   MUnk0D = 0x0d,
+   MUnk12 = 0x12,
+   MUnk13 = 0x13,
+   MUnk15 = 0x15,
+   MUnk19 = 0x19,
+   Switch = 0x26,
+   MUnk28 = 0x28,
+}
+
+const _FlowOpcode = eval('FlowOpcode');
+export function FlowOpcodeName(value: FlowOpcode): string {
+   return _FlowOpcode[value];
 }
 
 export const enum Opcode {
@@ -102,7 +110,6 @@ export const enum Opcode {
 }
 
 const _Opcode = eval('Opcode');
-
 export function OpcodeName(value: Opcode): string {
    return _Opcode[value];
 }
@@ -132,11 +139,9 @@ export const enum TextualOpcode {
 }
 
 const _TextualOpcode = eval('TextualOpcode');
-
 export function isTextualOpcode(byteCode: number): boolean {
    return byteCode !== TextualOpcode.NewLine && _TextualOpcode[byteCode] != null;
 }
-
 export function TextualOpcodeName(value: TextualOpcode): string {
    return _TextualOpcode[value];
 }

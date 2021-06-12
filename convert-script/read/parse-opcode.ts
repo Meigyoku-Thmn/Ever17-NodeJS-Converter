@@ -1,6 +1,7 @@
+/* eslint-disable no-inner-declarations */
 import { BufferTraverser } from '../../utils/buffer-wrapper';
 import { readCStringExpr, readExpression, readRawByteExpr, readRawInt16Expr } from './read-expression';
-import { MetaOpcode, MetaOpcodeName, Opcode, OpcodeInfo, OpcodeName, OpcodeType } from '../opcode';
+import { FlowOpcode, FlowOpcodeName, MetaOpcode, MetaOpcodeName, Opcode, OpcodeInfo, OpcodeName, OpcodeType } from '../opcode';
 import { parseTextualOpcodes } from './parse-textual-opcode';
 import { skipMarker, skipPadding } from './skip-padding';
 import { addContext } from '../../utils/error';
@@ -37,9 +38,12 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
          opcodeInfo.type = curOpcodeType = OpcodeType.MetaOpcode;
 
          switch (curByteCode) {
-            case MetaOpcode.Pad:
+            case MetaOpcode.Flow:
+               opcodeInfo.type = curOpcodeType = OpcodeType.FlowOpcode;
+               if (!reader.eof())
+                  parseFlow();
                break;
-            case MetaOpcode.VarOp: {
+            case MetaOpcode.Variable: {
                opcodeInfo.expressions.push(
                   readExpression(reader, 'left operand'),
                   readExpression(reader, 'assigment operator', true, 1),
@@ -48,6 +52,8 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                   readExpression(reader, 'right operand'),
                );
                if (opcodeInfo.expressions[2].type === ExpressionType.Variable)
+                  skipPadding(reader, 1);
+               else if (opcodeInfo.expressions[2].type === ExpressionType.FunctionCall)
                   skipPadding(reader, 1);
                else if (opcodeInfo.expressions[2].type === ExpressionType.RGB) {
                   skipPadding(reader, 1);
@@ -66,51 +72,7 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                opcodeInfo.type = curOpcodeType = OpcodeType.Opcode;
                parseCommand();
                break;
-            case MetaOpcode.Goto:
-               opcodeInfo.switches = [[null, readRawInt16Expr(reader, 'jump target').mapOffset(labels)]];
-               break;
-            case MetaOpcode.GotoIf:
-               skipMarker(reader, 1, 0x01);
-               if (goAroundSpecialGotoIf(reader)) {
-                  opcodeInfo.type = OpcodeType.UnknownGotoIf;
-                  break;
-               }
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'left operand'),
-                  readExpression(reader, 'comparison operator'),
-               );
-               skipMarker(reader, 1, 0x01);
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'right operand'),
-               );
-               skipMarker(reader, 1, 0x01);
-               skipMarker(reader, 1, 0x00);
-               opcodeInfo.switches = [[null, readRawInt16Expr(reader, 'jump target').mapOffset(labels)]];
-               break;
-            case MetaOpcode.Sleep:
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'argument', true),
-               );
-               break;
-            case MetaOpcode.Switch: {
-               opcodeInfo.expressions.push(readExpression(reader, 'expression to test', true, 1));
-               const expr = opcodeInfo.expressions[0];
-               const enumConfig = ENUM_MAP[expr.name] ?? {};
-               let marker = skipMarker(reader, 2, 0x2700);
-               opcodeInfo.switches = [];
-               while (marker === 0x2700) {
-                  opcodeInfo.switches.push([
-                     readExpression(reader, 'case expression', true),
-                     readRawInt16Expr(reader, 'jump target').mapOffset(labels),
-                  ]);
-                  const cond = opcodeInfo.switches[opcodeInfo.switches.length - 1][0];
-                  cond.name = enumConfig[cond.value as number] ?? cond.name;
-                  marker = reader.readUInt16();
-               }
-               reader.pos -= 2;
-               break;
-            }
-            case MetaOpcode.CallText: {
+            case MetaOpcode.Text: {
                const ordinal = readRawInt16Expr(reader, 'subroutine ordinal');
                opcodeInfo.switches = [[null, ordinal]];
                const pos = textualIndexes[ordinal.value as number];
@@ -124,40 +86,93 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                );
                break;
             }
-            case MetaOpcode.MUnk28:
-            case MetaOpcode.MUnk06:
-               break;
-            case MetaOpcode.MUnk0D:
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'a1', true),
-                  readRawInt16Expr(reader, 'a2'),
-               );
-               break;
-            case MetaOpcode.MUnk12:
-            case MetaOpcode.MUnk13:
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'a1', true),
-               );
-               break;
-            case MetaOpcode.MUnk15:
-               opcodeInfo.expressions.push(
-                  readRawByteExpr(reader, 'a1'),
-                  readExpression(reader, 'a2', true),
-                  readExpression(reader, 'a3', true),
-                  readRawInt16Expr(reader, 'a4'),
-               );
-               break;
-            case MetaOpcode.MUnk19:
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'a1', true),
-                  readExpression(reader, 'a2', true),
-               );
-               break;
             default:
                throw Error(`Unknown meta opcode: 0x${curByteCode.toString(16)}.`);
          }
 
-         // eslint-disable-next-line no-inner-declarations
+         function parseFlow(): void {
+            curByteCode = reader.readByte();
+            switch (curByteCode) {
+               case FlowOpcode.End:
+                  break;
+               case FlowOpcode.Goto:
+                  opcodeInfo.switches = [[null, readRawInt16Expr(reader, 'jump target').mapOffset(labels)]];
+                  break;
+               case FlowOpcode.GotoIf:
+                  skipMarker(reader, 1, 0x01);
+                  if (goAroundSpecialGotoIf(reader)) {
+                     opcodeInfo.type = OpcodeType.UnknownGotoIf;
+                     break;
+                  }
+                  opcodeInfo.expressions.push(
+                     readExpression(reader, 'left operand'),
+                     readExpression(reader, 'comparison operator'),
+                  );
+                  skipMarker(reader, 1, 0x01);
+                  opcodeInfo.expressions.push(
+                     readExpression(reader, 'right operand'),
+                  );
+                  skipMarker(reader, 1, 0x01);
+                  skipMarker(reader, 1, 0x00);
+                  opcodeInfo.switches = [[null, readRawInt16Expr(reader, 'jump target').mapOffset(labels)]];
+                  break;
+               case FlowOpcode.Sleep:
+                  opcodeInfo.expressions.push(
+                     readExpression(reader, 'argument', true),
+                  );
+                  break;
+               case FlowOpcode.Switch: {
+                  opcodeInfo.expressions.push(readExpression(reader, 'expression to test', true, 1));
+                  const expr = opcodeInfo.expressions[0];
+                  const enumConfig = ENUM_MAP[expr.name] ?? {};
+                  let marker = skipMarker(reader, 2, 0x2700);
+                  opcodeInfo.switches = [];
+                  while (marker === 0x2700) {
+                     opcodeInfo.switches.push([
+                        readExpression(reader, 'case expression', true),
+                        readRawInt16Expr(reader, 'jump target').mapOffset(labels),
+                     ]);
+                     const cond = opcodeInfo.switches[opcodeInfo.switches.length - 1][0];
+                     cond.name = enumConfig[cond.value as number] ?? cond.name;
+                     marker = reader.readUInt16();
+                  }
+                  reader.pos -= 2;
+                  break;
+               }
+               case FlowOpcode.MUnk28:
+               case FlowOpcode.MUnk06:
+                  break;
+               case FlowOpcode.MUnk0D:
+                  opcodeInfo.expressions.push(
+                     readExpression(reader, 'a1', true),
+                     readRawInt16Expr(reader, 'a2'),
+                  );
+                  break;
+               case FlowOpcode.MUnk12:
+               case FlowOpcode.MUnk13:
+                  opcodeInfo.expressions.push(
+                     readExpression(reader, 'a1', true),
+                  );
+                  break;
+               case FlowOpcode.MUnk15:
+                  opcodeInfo.expressions.push(
+                     readRawByteExpr(reader, 'a1'),
+                     readExpression(reader, 'a2', true),
+                     readExpression(reader, 'a3', true),
+                     readRawInt16Expr(reader, 'a4'),
+                  );
+                  break;
+               case FlowOpcode.MUnk19:
+                  opcodeInfo.expressions.push(
+                     readExpression(reader, 'a1', true),
+                     readExpression(reader, 'a2', true),
+                  );
+                  break;
+               default:
+                  throw Error(`Unknown flow opcode: 0x${curByteCode.toString(16)}.`);
+            }
+         }
+
          function parseCommand(): void {
             curByteCode = reader.readByte();
             switch (curByteCode) {
@@ -398,6 +413,8 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
    } catch (err) {
       if (curOpcodeType === OpcodeType.MetaOpcode)
          addContext(err, ` at MetaOpcode.${MetaOpcodeName(curByteCode)}`);
+      else if (curOpcodeType === OpcodeType.FlowOpcode)
+         addContext(err, ` at FlowOpcode.${FlowOpcodeName(curByteCode)}`);
       else if (curOpcodeType === OpcodeType.Opcode)
          addContext(err, ` at Opcode.${OpcodeName(curByteCode)}`);
       addContext(err, ` at position 0x${curOpcodePos.toString(16)}`);

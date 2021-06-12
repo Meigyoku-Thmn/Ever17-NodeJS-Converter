@@ -2,7 +2,7 @@ import fs from 'fs';
 import { makeHexPad16, makeHexPad2 } from '../../utils/string';
 import { Expression, ExpressionType } from '../expression';
 import {
-   MetaOpcode, Opcode, OpcodeInfo, OpcodeName, OpcodeType, TextualOpcode, TextualOpcodeName, TextualOpcodeType
+   FlowOpcode, MetaOpcode, Opcode, OpcodeInfo, OpcodeName, OpcodeType, TextualOpcode, TextualOpcodeName, TextualOpcodeType
 } from '../opcode';
 import { OPERATOR_MAP } from './operator-map';
 
@@ -46,25 +46,10 @@ export function dumpCode(opcodeInfos: OpcodeInfo[], outputPath: string): void {
       // pseudo-code
       if (opcodeInfo.type === OpcodeType.MetaOpcode) {
          switch (opcodeInfo.code) {
-            case MetaOpcode.Pad:
-               break;
-            case MetaOpcode.VarOp:
+            case MetaOpcode.Variable:
                fs.writeSync(fd, `${generateExprStr(opcodeInfo.expressions)}`);
                break;
-            case MetaOpcode.Goto:
-               fs.writeSync(fd, `goto ${makeHexPad16(opcodeInfo.switches[0][1].target)}`);
-               break;
-            case MetaOpcode.GotoIf:
-               fs.writeSync(fd, `if ${generateExprStr(opcodeInfo.expressions)} `);
-               fs.writeSync(fd, `goto ${makeHexPad16(opcodeInfo.switches[0][1].target)}`);
-               break;
-            case MetaOpcode.Switch: {
-               fs.writeSync(fd, `switch ${generateExprStr(opcodeInfo.expressions)}\n`);
-               for (const [{ value, name }, { target }] of opcodeInfo.switches)
-                  fs.writeSync(fd, `case ${name ?? value} goto ${makeHexPad16(target)}\n`);
-               break;
-            }
-            case MetaOpcode.CallText:
+            case MetaOpcode.Text:
                fs.writeSync(fd, 'text\n');
                fs.writeSync(fd, `__[${makeHexPad16(opcodeInfo.textualOpcodeInfos[0].position)}]`);
                for (const textOpInfo of opcodeInfo.textualOpcodeInfos) {
@@ -90,11 +75,30 @@ export function dumpCode(opcodeInfos: OpcodeInfo[], outputPath: string): void {
                }
                fs.writeSync(fd, '\n');
                break;
-            case MetaOpcode.Sleep:
+         }
+      }
+      else if (opcodeInfo.type === OpcodeType.FlowOpcode) {
+         switch (opcodeInfo.code) {
+            case FlowOpcode.End:
+               break;
+            case FlowOpcode.Goto:
+               fs.writeSync(fd, `goto ${makeHexPad16(opcodeInfo.switches[0][1].target)}`);
+               break;
+            case FlowOpcode.GotoIf:
+               fs.writeSync(fd, `if ${generateExprStr(opcodeInfo.expressions)} `);
+               fs.writeSync(fd, `goto ${makeHexPad16(opcodeInfo.switches[0][1].target)}`);
+               break;
+            case FlowOpcode.Switch: {
+               fs.writeSync(fd, `switch ${generateExprStr(opcodeInfo.expressions)}\n`);
+               for (const [{ value, name }, { target }] of opcodeInfo.switches)
+                  fs.writeSync(fd, `case ${name ?? value} goto ${makeHexPad16(target)}\n`);
+               break;
+            }
+            case FlowOpcode.Sleep:
                fs.writeSync(fd, `sleep ${opcodeInfo.expressions[0].value}`);
                break;
             default:
-               fs.writeSync(fd, `meta_unk_${makeHexPad2(opcodeInfo.code)}`);
+               fs.writeSync(fd, `flow_unk_${makeHexPad2(opcodeInfo.code)}`);
                if (opcodeInfo.expressions.length > 0)
                   fs.writeSync(fd, ` ${generateExprStr(opcodeInfo.expressions)}`);
          }
