@@ -96,7 +96,7 @@ function loadScriptMetadata(): Metadata {
    input.close();
 
    do {
-      const fileOffset = fileInfoBuf.readUInt32() + + 16 + metadataSize;
+      const fileOffset = fileInfoBuf.readUInt32() + 16 + metadataSize;
       const fileSize = fileInfoBuf.readUInt32() >>> 1;
       const fileName = fileInfoBuf.readRawASCII(24).replace(/\0/g, '');
       metadata[fileOffset] = { fileSize, fileName };

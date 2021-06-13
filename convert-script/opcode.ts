@@ -8,6 +8,7 @@ export class OpcodeInfo {
    expressions: Expression[] = [];
    switches: [Expression, Expression][] = [];
    textualOpcodeInfos: TextualOpcodeInfo[] = [];
+   labeled = false;
 
    constructor(initialObj?: Partial<OpcodeInfo>) {
       return Object.assign(this, initialObj);
@@ -122,8 +123,11 @@ export const enum TextualOpcode {
    Wait = 0x02,
    // Clear text, reset text state
    Clear = 0x03,
+   // Thread sleep by nFrame
    Delay = 0x04,
-   // No visual effect, potentially a command that can change text speed, but it's unused in the game  
+   // No visual effect, potentially a command that can change text speed, but it's unused in the game
+   // or, this is related to back log system, which I don't care about.
+   // I think this opcode can be ignored
    S = 0x05,
    Choice = 0x0b,
    WaitVoice = 0x0c,
@@ -131,9 +135,10 @@ export const enum TextualOpcode {
    // Mark the last point that you can save
    Mark = 0x0e,
    // Turn on/off some text states, but has no visual effect, may be the devs had some ideas but couldn't make it?
-   // Perhaps {State 4} is reset state, {State 0} is bold/italic/colored, or another font, and {State 1} revert to normal?
+   // What if {State 0} is bold/italic/colored, or another font, and {State 1} revert to normal?
+   // I checked the assembly code and there is no handling routine for this, it just continues the game loop and nothing else
    // Think about it, a lot of text segments in game script have this, and all of them are important plot points. It makes more sense if they are visually emphasized somehow.
-   State = 0x10,
+   Style = 0x10,
    // Switch to big character state (param is always 0x03)
    Big = 0x11,
 }

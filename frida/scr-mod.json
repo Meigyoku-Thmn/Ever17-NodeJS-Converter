@@ -6,12 +6,11 @@
       "ssbd_.scr": "0x0000018f"
    },
    "patches": {
-      "ssbd_.scr": [
+      "op00_.scr": [
          {
-            "offset": "0x17E4",
+            "offset": "0x2495",
             "shift": "0",
-            "content_": "11 03",
-            "content": "11 02"
+            "content": "87 53"
          }
       ]
    }

@@ -21,6 +21,8 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
    const reader = new BufferTraverser(bytecodes);
    const opcodeInfos: OpcodeInfo[] = [];
 
+   const labelSet = new Set(labels);
+
    const pos = labels[0];
 
    let curOpcodePos = 0;
@@ -405,7 +407,7 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
          opcodeInfo.code = curByteCode;
          opcodeInfo.position = curOpcodePos;
          opcodeInfo.bytecodes = reader.buffer.subarray(curRelOpcodePos, reader.pos);
-
+         opcodeInfo.labeled = labelSet.has(opcodeInfo.position);
          opcodeInfos.push(opcodeInfo);
 
          curOpcodeType = -1;

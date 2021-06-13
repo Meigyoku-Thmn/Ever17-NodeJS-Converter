@@ -39,7 +39,10 @@ export function dumpCode(opcodeInfos: OpcodeInfo[], outputPath: string): void {
 
    for (const opcodeInfo of opcodeInfos) {
       // offset tag and hex dump
-      fs.writeSync(fd, `[${makeHexPad16(opcodeInfo.position)}]`);
+      fs.writeSync(fd, '[');
+      if (opcodeInfo.labeled)
+         fs.writeSync(fd, 'labeled:');
+      fs.writeSync(fd, `${makeHexPad16(opcodeInfo.position)}]`);
       fs.writeSync(fd, [...opcodeInfo.bytecodes].map(b => makeHexPad2(b)).join(' '));
       fs.writeSync(fd, ': ');
 
@@ -56,6 +59,21 @@ export function dumpCode(opcodeInfos: OpcodeInfo[], outputPath: string): void {
                   if (textOpInfo.type === TextualOpcodeType.Text)
                      fs.writeSync(fd, textOpInfo.text);
                   else switch (textOpInfo.code) {
+                     case TextualOpcode.Style:
+                        switch (textOpInfo.expressions[0].value) {
+                           case 0:
+                              fs.writeSync(fd, '{Emphasized}');
+                              break;
+                           case 1:
+                              fs.writeSync(fd, '{Normal}');
+                              break;
+                           case 4:
+                              fs.writeSync(fd, '{ResetStyle}');
+                              break;
+                           default:
+                              fs.writeSync(fd, '{StyleError}');
+                        }
+                        break;
                      case TextualOpcode.Choice:
                         fs.writeSync(fd, `{${TextualOpcodeName(textOpInfo.code)} ${textOpInfo.expressions[0].value}\n`);
                         for (const [cond, text] of textOpInfo.choices) {

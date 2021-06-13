@@ -1,0 +1,50 @@
+c0: 11000000  01000000 40 skip 2 bytes, ensure the last skipped byte is zero
+cf: 11001111
+
+d0: 11010000  01000000 40 skip 2 bytes, ensure the last skipped byte is zero
+df: 11011111
+
+c0: 11000000  01000000 40 skip 2 bytes, ensure the last skipped byte is zero
+cf: 11001111 
+
+a0: 10100000  00100000 20 skip 2 bytes, ensure the last skipped byte is zero
+af: 10101111 
+
+b0: 10110000  00100000 20 skip 2 bytes, ensure the last skipped byte is zero
+bf: 10111111 
+
+80: 10000000  00000000 00 skip 2 bytes, ensure the last skipped byte is zero
+8f: 10001111 
+
+90: 10010000  00000000 00 skip 2 bytes, ensure the last skipped byte is zero
+9f: 10011111
+
+e0: 11100000  01100000 60 read 4 bytes color (rgba?), skip 2 bytes, ensure the last skipped byte is zero
+
+
+readExpression\(reader, [^,]+?\)
+
+tag "label" for goto target
+
+find out how rgb work
+
+find out how config() work
+
+0a 01
+2d 0a 87 14
+00
+04 00
+
+10
+3a 00 19
+80 00
+00
+84 00 
+00
+
+
+0a 01
+28 0a a4 dd 14
+0c 01
+80 01 00
+04 00

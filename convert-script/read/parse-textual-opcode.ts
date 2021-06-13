@@ -88,7 +88,7 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                break;
             case TextualOpcode.Mark:
                break;
-            case TextualOpcode.State:
+            case TextualOpcode.Style:
                opcodeInfo.expressions.push(
                   readRawByteExpr(reader, 'unk'),
                );
@@ -122,55 +122,85 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                if ((c1 >= 0x80 && c1 <= 0xa0) || (c1 >= 0xe0 && c1 <= 0xef))
                   c2 = reader.readByte();
 
-               let emoji: string;
+               let jpChar: string;
                if (c2 != null)
-                  emoji = decodeCP932(c1, c2);
+                  jpChar = decodeCP932(c1, c2);
 
                // the japanese version has emojis in script
-               switch (emoji) {
+               switch (jpChar) {
+                  // emoji
                   case '①': // CIRCLED DIGIT ONE
-                     emoji = '💧'; // it was a Double Droplet 💧💧 in the japanese version
+                     jpChar = '💧'; // it was a Double Droplet 💧💧 in the japanese version
                      break;
                   case '②': // CIRCLED DIGIT TWO
-                     emoji = '❤️';
+                     jpChar = '❤️';
                      break;
                   case '③': // CIRCLED DIGIT THREE
-                     emoji = '💢';
+                     jpChar = '💢';
                      break;
                   case '④': // CIRCLED DIGIT FOUR
-                     emoji = '💦';
+                     jpChar = '💦';
                      break;
                   case '⑤': // CIRCLED DIGIT FIVE
-                     emoji = '⭐';
+                     jpChar = '⭐';
                      break;
                   case '⑩': // CIRCLED NUMBER TEN
-                     emoji = 'ä';
+                     jpChar = 'ä';
                      break;
+                  // German character
                   case '⑪': // CIRCLED NUMBER ELEVEN
-                     emoji = 'ö';
+                     jpChar = 'ö';
                      break;
                   case '⑫': // CIRCLED NUMBER TWELVE
-                     emoji = 'ü';
+                     jpChar = 'ü';
                      break;
                   case '⑬': // CIRCLED NUMBER THIRTEEN
-                     emoji = '—'; // EM DASH
+                     jpChar = '—'; // EM DASH
                      break;
                   // fallback cases for English language
                   // TODO: make a separate mode for Japanese language
-                  case '．': // FULLWIDTH FULL STOP
-                     emoji = '.';
+                  case '舅':
+                     jpChar = 'än';
                      break;
                   case '　': // IDEOGRAPHIC SPACE
-                     emoji = ' ';
+                     jpChar = ' ';
+                     break;
+                  case '，': // FULLWIDTH COMMA
+                     jpChar = ',';
+                     break;
+                  case '．': // FULLWIDTH FULL STOP
+                     jpChar = '.';
+                     break;
+                  case '？': // FULLWIDTH QUESTION MARK
+                     jpChar = '?';
                      break;
                   case '！': // FULLWIDTH EXCLAMATION MARK
-                     emoji = '!';
+                     jpChar = '!';
                      break;
-                  default:
-                     emoji = null;
+                  case '／': // FULLWIDTH SOLIDUS
+                     jpChar = '/';
+                     break;
+                  case '’': // RIGHT SINGLE QUOTATION MARK
+                     jpChar = '\\';
+                     break;
+                  case '（': // FULLWIDTH LEFT PARENTHESIS
+                     jpChar = '(';
+                     break;
+                  case '）': // FULLWIDTH RIGHT PARENTHESIS
+                     jpChar = ')';
+                     break;
+                  case '－': // FULLWIDTH HYPHEN-MINUS
+                     jpChar = '-';
+                     break;
+                  case '＜': // FULLWIDTH LESS-THAN SIGN
+                     jpChar = '<';
+                     break;
+                  case '＞': // FULLWIDTH GREATER-THAN SIGN
+                     jpChar = '>';
+                     break;
                }
-               if (emoji != null)
-                  text += emoji;
+               if (jpChar != null)
+                  text += jpChar;
                else if (c2 != null)
                   text += decodeCP1252(c1, c2);
                else
