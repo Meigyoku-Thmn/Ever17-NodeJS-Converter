@@ -2,10 +2,10 @@ import yargs from 'yargs';
 import path from 'path';
 import fs from 'fs';
 import { File, BinaryReader, SeekOrigin } from 'csbinary';
-import { parseOpcodes } from './read/parse-opcode';
+import { parseInstructions } from './read/parse-opcode';
 import { dumpRenPyScript, dumpScript } from './write/dump-script';
 import { printError } from '../utils/error';
-import { DEBUG_SCR_FILES } from '../debug/';
+import { DEBUG_SCR_FILES } from '../debug';
 import { dumpCode } from './write/dump-code';
 
 let _DEBUG_SCR_FILES = DEBUG_SCR_FILES ?? [];
@@ -102,15 +102,15 @@ let currentFileName: string;
             .split('\0')
             .filter(e => e.length > 0);
 
-         const opcodeInfos = parseOpcodes({
+         const instructions = parseInstructions({
             bytecodes, labels, textualIndexes, textualBytecodes, imageNames
          });
 
          fs.mkdirSync(outputDir, { recursive: true });
          const basename = path.join(outputDir, path.basename(fileName, '.scr'));
-         dumpCode(opcodeInfos, basename + '.txt');
-         dumpScript(opcodeInfos, basename + '.txt');
-         dumpRenPyScript(opcodeInfos, basename + '.txt');
+         dumpCode(instructions, basename + '.txt');
+         dumpScript(instructions, basename + '.txt');
+         dumpRenPyScript(instructions, basename + '.txt');
       }
       console.timeEnd(MyName);
    } catch (err) {

@@ -1,9 +1,9 @@
-import { OpcodeInfo } from '../opcode';
+import { Instruction } from '../instruction';
 
-export function dumpScript(opcodes: OpcodeInfo[], outputPath: string): void {
+export function dumpScript(instructions: Instruction[], outputPath: string): void {
    return;
 }
 
-export function dumpRenPyScript(opcodes: OpcodeInfo[], outputPath: string): void {
+export function dumpRenPyScript(instructions: Instruction[], outputPath: string): void {
    return;
 }

@@ -10,7 +10,6 @@
       "csbinary": "^2.1.4",
       "cup-readdir": "^1.0.3",
       "frida": "^14.2.18",
-      "fs-ext": "^2.0.0",
       "iconv-lite": "^0.6.3",
       "typescript-bundle": "^1.0.17",
       "yargs": "^17.0.1"

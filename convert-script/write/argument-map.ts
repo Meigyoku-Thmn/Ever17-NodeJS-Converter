@@ -1,4 +1,4 @@
-import { Opcode } from '../opcode';
+import { Opcode } from '../../convert-script/opcode';
 
 type PropValueOf<T> = T[keyof T];
 type ArgumentValue = Record<number, string>;

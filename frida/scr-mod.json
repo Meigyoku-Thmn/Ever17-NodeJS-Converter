@@ -8,9 +8,9 @@
    "patches": {
       "op00_.scr": [
          {
-            "offset": "0x2495",
+            "offset": "0x00000158",
             "shift": "0",
-            "content": "87 53"
+            "content": "fe 28 0a a0 ab 14 14 00 c0 ff 27 00 00"
          }
       ]
    }

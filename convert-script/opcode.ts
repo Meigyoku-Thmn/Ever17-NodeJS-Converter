@@ -1,42 +1,3 @@
-import { Expression } from './expression';
-
-export class OpcodeInfo {
-   position: number;
-   bytecodes: Buffer;
-   type: OpcodeType;
-   code: MetaOpcode | FlowOpcode | Opcode;
-   expressions: Expression[] = [];
-   switches: [Expression, Expression][] = [];
-   textualOpcodeInfos: TextualOpcodeInfo[] = [];
-   labeled = false;
-
-   constructor(initialObj?: Partial<OpcodeInfo>) {
-      return Object.assign(this, initialObj);
-   }
-}
-
-export class TextualOpcodeInfo {
-   position: number;
-   bytecodes: Buffer;
-   type: TextualOpcodeType;
-   code: TextualOpcode;
-   expressions: Expression[] = [];
-   choices: [Expression, string][] = [];
-   text = '';
-
-   constructor(initialObj?: Partial<TextualOpcodeInfo>) {
-      return Object.assign(this, initialObj);
-   }
-}
-
-export const enum OpcodeType {
-   MetaOpcode, FlowOpcode, Opcode, UnknownGotoIf,
-}
-
-export const enum TextualOpcodeType {
-   Text, Command,
-}
-
 export const enum MetaOpcode {
    Flow = 0x00,
    Command = 0x10,
@@ -101,6 +62,7 @@ export const enum Opcode {
    Unk2B = 0x2b,
    UnlockImage = 0x37,
    PlayMovie = 0x39,
+   Unk3A = 0x3A,
    Unk3B = 0x3B,
    Unk3C = 0x3C,
    LoadBGCrop = 0x40,

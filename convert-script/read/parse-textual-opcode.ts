@@ -1,8 +1,9 @@
 import iconv from 'iconv-lite';
 import { BufferTraverser } from '../../utils/buffer-wrapper';
 import { addContext } from '../../utils/error';
-import { isTextualOpcode, TextualOpcode, TextualOpcodeInfo, TextualOpcodeName, TextualOpcodeType } from '../opcode';
-import { readCStringExpr, readExpression, readRawByteExpr, readRawInt16Expr } from './read-expression';
+import { TextualInstruction, TextualInstructionType } from '../instruction';
+import { isTextualOpcode, TextualOpcode, TextualOpcodeName } from '../opcode';
+import { readCStringExpr, readExpressions, readRawByteExpr, readRawInt16Expr } from './read-expression';
 import { skipMarker, skipPadding } from './skip-padding';
 
 const CP1252 = iconv.getDecoder('CP1258');
@@ -20,37 +21,35 @@ function decodeCP1252(...bytes: number[]): string {
    return rs;
 }
 
-export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpcodeInfo[] {
+export function parseTextualInstructions(bytecodes: Buffer, pos: number): TextualInstruction[] {
    const reader = new BufferTraverser(bytecodes);
-   const opcodeInfos: TextualOpcodeInfo[] = [];
+   const instructions: TextualInstruction[] = [];
 
    let curOpcodePos = 0;
    let curRelOpcodePos = 0;
-   let curOpcodeType: TextualOpcodeType = -1;
+   let curOpcodeType: TextualInstructionType = -1;
    let curByteCode = 0;
 
    try {
       while (!reader.eof()) {
-         const opcodeInfo = new TextualOpcodeInfo();
+         const opcodeInfo = new TextualInstruction();
          curRelOpcodePos = reader.pos;
          curOpcodePos = pos + curRelOpcodePos;
          curByteCode = reader.readByte();
 
-         opcodeInfo.type = curOpcodeType = TextualOpcodeType.Command;
+         opcodeInfo.type = curOpcodeType = TextualInstructionType.Command;
          switch (curByteCode) {
             case TextualOpcode.End:
             case TextualOpcode.Wait:
             case TextualOpcode.Clear:
                break;
             case TextualOpcode.Delay:
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'duration', true),
-               );
+               opcodeInfo.expressions = readExpressions(reader, 'duration');
                break;
             case TextualOpcode.S: {
-               const expr = readExpression(reader, 'unk', true); // always zero
-               if (expr.value !== 0)
-                  throw Error(`Expected a zero-value expression, got value ${expr.value}.`);
+               const expr = readExpressions(reader, 'unk'); // always zero
+               if (expr[0].value !== 0)
+                  throw Error(`Expected a zero-value expression, got value ${expr[0].value}.`);
                break;
             }
             case TextualOpcode.Choice: {
@@ -68,7 +67,7 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                      ]);
                   else if (type === 2)
                      opcodeInfo.choices.push([
-                        readExpression(reader, 'choiceCond', true, 1),
+                        readExpressions(reader, 'choiceCond'),
                         parseText(reader.readByte(), true),
                      ]);
                   else
@@ -100,7 +99,7 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
                break;
             }
             default:
-               opcodeInfo.type = curOpcodeType = TextualOpcodeType.Text;
+               opcodeInfo.type = curOpcodeType = TextualInstructionType.Text;
                parseText(curByteCode);
          }
 
@@ -222,18 +221,18 @@ export function parseTextualOpcodes(bytecodes: Buffer, pos: number): TextualOpco
          opcodeInfo.position = curOpcodePos;
          opcodeInfo.bytecodes = reader.buffer.subarray(curRelOpcodePos, reader.pos);
 
-         opcodeInfos.push(opcodeInfo);
+         instructions.push(opcodeInfo);
 
          curOpcodeType = -1;
       }
    } catch (err) {
-      if (curOpcodeType === TextualOpcodeType.Command)
+      if (curOpcodeType === TextualInstructionType.Command)
          addContext(err, ` at MetaOpcode.${TextualOpcodeName(curByteCode)}`);
-      else if (curOpcodeType === TextualOpcodeType.Text)
+      else if (curOpcodeType === TextualInstructionType.Text)
          addContext(err, ' in text');
       addContext(err, ` at position 0x${curOpcodePos.toString(16)}`);
       throw err;
    }
 
-   return opcodeInfos;
+   return instructions;
 }

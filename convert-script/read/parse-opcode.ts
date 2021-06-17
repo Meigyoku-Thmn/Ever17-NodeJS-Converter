@@ -1,12 +1,13 @@
 /* eslint-disable no-inner-declarations */
 import { BufferTraverser } from '../../utils/buffer-wrapper';
-import { readCStringExpr, readExpression, readRawByteExpr, readRawInt16Expr } from './read-expression';
-import { FlowOpcode, FlowOpcodeName, MetaOpcode, MetaOpcodeName, Opcode, OpcodeInfo, OpcodeName, OpcodeType } from '../opcode';
-import { parseTextualOpcodes } from './parse-textual-opcode';
+import { readCStringExpr, readExpressions, readRawByteExpr, readRawInt16Expr } from './read-expression';
+import { FlowOpcode, FlowOpcodeName, MetaOpcode, MetaOpcodeName, Opcode, OpcodeName } from '../opcode';
+import { parseTextualInstructions } from './parse-textual-opcode';
 import { skipMarker, skipPadding } from './skip-padding';
 import { addContext } from '../../utils/error';
-import { goAroundSpecialGotoIf } from './work-around';
 import { ExpressionType } from '../expression';
+import { Instruction, InstructionType } from '../instruction';
+import { makeHexPad2 } from '../../utils/string';
 import { ENUM_MAP } from '../write/variable_map';
 
 type Params = {
@@ -17,9 +18,10 @@ type Params = {
    imageNames: string[],
 };
 
-export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecodes, imageNames }: Params): OpcodeInfo[] {
+export function parseInstructions(params: Params): Instruction[] {
+   const { bytecodes, labels, textualIndexes, textualBytecodes, imageNames } = params;
    const reader = new BufferTraverser(bytecodes);
-   const opcodeInfos: OpcodeInfo[] = [];
+   const instructions: Instruction[] = [];
 
    const labelSet = new Set(labels);
 
@@ -27,65 +29,47 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
 
    let curOpcodePos = 0;
    let curRelOpcodePos = 0;
-   let curOpcodeType: OpcodeType = -1;
+   let curOpcodeType: InstructionType = -1;
    let curByteCode = 0;
 
    try {
       while (!reader.eof()) {
-         const opcodeInfo = new OpcodeInfo();
+         const instruction = new Instruction();
          curRelOpcodePos = reader.pos;
          curOpcodePos = pos + curRelOpcodePos;
          curByteCode = reader.readByte();
 
-         opcodeInfo.type = curOpcodeType = OpcodeType.MetaOpcode;
+         instruction.type = curOpcodeType = InstructionType.Meta;
 
          switch (curByteCode) {
             case MetaOpcode.Flow:
-               opcodeInfo.type = curOpcodeType = OpcodeType.FlowOpcode;
+               instruction.type = curOpcodeType = InstructionType.Flow;
                if (!reader.eof())
                   parseFlow();
                break;
             case MetaOpcode.Variable: {
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'left operand'),
-                  readExpression(reader, 'assigment operator', true, 1),
-               );
-               opcodeInfo.expressions.push(
-                  readExpression(reader, 'right operand'),
-               );
-               if (opcodeInfo.expressions[2].type === ExpressionType.Variable)
-                  skipPadding(reader, 1);
-               else if (opcodeInfo.expressions[2].type === ExpressionType.FunctionCall)
-                  skipPadding(reader, 1);
-               else if (opcodeInfo.expressions[2].type === ExpressionType.RGB) {
-                  skipPadding(reader, 1);
-                  skipPadding(reader, 2);
-               }
-               else if (opcodeInfo.expressions[2].type !== ExpressionType.Config)
-                  skipPadding(reader, 2);
-
-               const assignee = opcodeInfo.expressions[2];
-               const variable = opcodeInfo.expressions[0];
+               instruction.expressions = readExpressions(reader, 'variable expression');
+               const variable = instruction.expressions[0];
+               if (variable.type !== ExpressionType.VariableRef)
+                  throw Error(`Expected VariableRef expression but got 0x${makeHexPad2(variable.type)}.`);
+               const assignee = instruction.expressions[2];
                if (assignee.type === ExpressionType.Const)
                   assignee.name = ENUM_MAP[variable.name]?.[assignee.value as number] ?? assignee.name;
                break;
             }
             case MetaOpcode.Command:
-               opcodeInfo.type = curOpcodeType = OpcodeType.Opcode;
+               instruction.type = curOpcodeType = InstructionType.Opcode;
                parseCommand();
                break;
             case MetaOpcode.Text: {
                const ordinal = readRawInt16Expr(reader, 'subroutine ordinal');
-               opcodeInfo.switches = [[null, ordinal]];
+               instruction.switches = [[null, ordinal]];
                const pos = textualIndexes[ordinal.value as number];
                const begin = textualIndexes[ordinal.value as number] - textualIndexes[0];
                let end = textualIndexes[ordinal.value as number + 1] - textualIndexes[0];
                if (isNaN(end))
                   end = undefined;
-               opcodeInfo.textualOpcodeInfos = parseTextualOpcodes(
-                  textualBytecodes.subarray(begin, end),
-                  pos
-               );
+               instruction.textualInstructions = parseTextualInstructions(textualBytecodes.subarray(begin, end), pos);
                break;
             }
             default:
@@ -98,43 +82,31 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                case FlowOpcode.End:
                   break;
                case FlowOpcode.Goto:
-                  opcodeInfo.switches = [[null, readRawInt16Expr(reader, 'jump target').mapOffset(labels)]];
+                  instruction.switches = [[
+                     null, readRawInt16Expr(reader, 'jump target').mapOffset(labels, 'jump target')
+                  ]];
                   break;
                case FlowOpcode.GotoIf:
                   skipMarker(reader, 1, 0x01);
-                  if (goAroundSpecialGotoIf(reader)) {
-                     opcodeInfo.type = OpcodeType.UnknownGotoIf;
-                     break;
-                  }
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'left operand'),
-                     readExpression(reader, 'comparison operator'),
-                  );
-                  skipMarker(reader, 1, 0x01);
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'right operand'),
-                  );
-                  skipMarker(reader, 1, 0x01);
-                  skipMarker(reader, 1, 0x00);
-                  opcodeInfo.switches = [[null, readRawInt16Expr(reader, 'jump target').mapOffset(labels)]];
+                  instruction.expressions = readExpressions(reader, 'comparison');
+                  instruction.switches = [[
+                     null, readRawInt16Expr(reader, 'jump target').mapOffset(labels, 'jump target')
+                  ]];
                   break;
                case FlowOpcode.Sleep:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'argument', true),
-                  );
+                  instruction.expressions = readExpressions(reader, 'duration');
                   break;
                case FlowOpcode.Switch: {
-                  opcodeInfo.expressions.push(readExpression(reader, 'expression to test', true, 1));
-                  const expr = opcodeInfo.expressions[0];
+                  instruction.expressions = readExpressions(reader, 'expression to test');
+                  const expr = instruction.expressions[0];
                   const enumConfig = ENUM_MAP[expr.name] ?? {};
                   let marker = skipMarker(reader, 2, 0x2700);
-                  opcodeInfo.switches = [];
                   while (marker === 0x2700) {
-                     opcodeInfo.switches.push([
-                        readExpression(reader, 'case expression', true),
-                        readRawInt16Expr(reader, 'jump target').mapOffset(labels),
+                     instruction.switches.push([
+                        readExpressions(reader, 'case expression'),
+                        readRawInt16Expr(reader, 'jump target').mapOffset(labels, 'jump target'),
                      ]);
-                     const cond = opcodeInfo.switches[opcodeInfo.switches.length - 1][0];
+                     const cond = instruction.switches[instruction.switches.length - 1][0][0];
                      cond.name = enumConfig[cond.value as number] ?? cond.name;
                      marker = reader.readUInt16();
                   }
@@ -145,29 +117,27 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
                case FlowOpcode.MUnk06:
                   break;
                case FlowOpcode.MUnk0D:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'a1', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'a1'),
                      readRawInt16Expr(reader, 'a2'),
                   );
                   break;
                case FlowOpcode.MUnk12:
                case FlowOpcode.MUnk13:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'a1', true),
-                  );
+                  instruction.expressions = readExpressions(reader, 'a1');
                   break;
                case FlowOpcode.MUnk15:
-                  opcodeInfo.expressions.push(
+                  instruction.expressions.push(
                      readRawByteExpr(reader, 'a1'),
-                     readExpression(reader, 'a2', true),
-                     readExpression(reader, 'a3', true),
+                     ...readExpressions(reader, 'a2'),
+                     ...readExpressions(reader, 'a3'),
                      readRawInt16Expr(reader, 'a4'),
                   );
                   break;
                case FlowOpcode.MUnk19:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'a1', true),
-                     readExpression(reader, 'a2', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'a1'),
+                     ...readExpressions(reader, 'a2'),
                   );
                   break;
                default:
@@ -179,249 +149,244 @@ export function parseOpcodes({ bytecodes, labels, textualIndexes, textualBytecod
             curByteCode = reader.readByte();
             switch (curByteCode) {
                case Opcode.ToFile:
-                  opcodeInfo.expressions.push(readCStringExpr(reader, 'script name'));
+                  instruction.expressions.push(readCStringExpr(reader, 'script name'));
                   break;
                case Opcode.PlayBGM:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'bgm name', true).mapMusic(),
-                     readExpression(reader, 'bgm volume', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'bgm name'),
+                     ...readExpressions(reader, 'bgm volume'),
                   );
+                  instruction.expressions[0].mapMusic();
                   break;
                case Opcode.StopBGM:
                   break;
                case Opcode.PlaySFX:
-                  opcodeInfo.expressions.push(
+                  instruction.expressions.push(
                      readCStringExpr(reader, 'sfx name'),
-                     readExpression(reader, 'unk', true),
-                     readExpression(reader, 'sfx volume', true),
+                     ...readExpressions(reader, 'unk'),
+                     ...readExpressions(reader, 'sfx volume'),
                   );
                   break;
                case Opcode.StopSFX:
                case Opcode.WaitSFX:
                   break;
                case Opcode.PlayVoice:
-                  opcodeInfo.expressions.push(readCStringExpr(reader, 'voice name'));
+                  instruction.expressions.push(readCStringExpr(reader, 'voice name'));
                   break;
                case Opcode.WaitVoice:
                   break;
                case Opcode.LoadBG:
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'image name').mapImage(imageNames),
-                     readExpression(reader, 'mode1', true),
-                     readExpression(reader, 'mode2', true),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'image name').mapImage(imageNames, 'image name'),
+                     ...readExpressions(reader, 'mode1'),
+                     ...readExpressions(reader, 'mode2'),
                   );
                   break;
                case Opcode.RemoveBG:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'target color', true),
-                     readExpression(reader, 'mode1', true),
-                     readExpression(reader, 'mode2', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'target color'),
+                     ...readExpressions(reader, 'mode1'),
+                     ...readExpressions(reader, 'mode2'),
                   );
                   break;
                case Opcode.LoadFG:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'fg id', true),
-                  );
+                  instruction.expressions = readExpressions(reader, 'fg id');
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'image name').mapImage(imageNames),
-                     readExpression(reader, 'horizontal position', true),
-                     readExpression(reader, 'mode', true),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'image name').mapImage(imageNames, 'image name'),
+                     ...readExpressions(reader, 'horizontal position'),
+                     ...readExpressions(reader, 'mode'),
                   );
                   break;
                case Opcode.RemoveFG:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'fg id', true),
-                     readExpression(reader, 'mode', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'fg id'),
+                     ...readExpressions(reader, 'mode'),
                   );
                   break;
                case Opcode.LoadFG2:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'fg id1', true),
-                     readExpression(reader, 'fg id2', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'fg id1'),
+                     ...readExpressions(reader, 'fg id2'),
                   );
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'image1 name').mapImage(imageNames),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'image1 name').mapImage(imageNames, 'image1 name'),
                   );
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'image2 name').mapImage(imageNames),
-                     readExpression(reader, 'dx1', true),
-                     readExpression(reader, 'dx2', true),
-                     readExpression(reader, 'mode', true),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'image2 name').mapImage(imageNames, 'image2 name'),
+                     ...readExpressions(reader, 'dx1'),
+                     ...readExpressions(reader, 'dx2'),
+                     ...readExpressions(reader, 'mode'),
                   );
                   break;
                case Opcode.RemoveFG3:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'sum of ids').mapArgument(curByteCode, 0),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'sum of ids'),
+                     ...readExpressions(reader, 'mode'),
                   );
-                  skipMarker(reader, 2, 0x0004);
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'mode', true).mapArgument(curByteCode, 1),
-                  );
+                  instruction.expressions[0].mapArgument(curByteCode, 0, 'sum of ids');
+                  instruction.expressions[1].mapArgument(curByteCode, 1, 'mode');
                   break;
                case Opcode.SetFGOrder:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'fg id1 Depth', true),
-                     readExpression(reader, 'fg id2 Depth', true),
-                     readExpression(reader, 'fg id4 Depth', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'fg id1 Depth'),
+                     ...readExpressions(reader, 'fg id2 Depth'),
+                     ...readExpressions(reader, 'fg id4 Depth'),
                   );
                   break;
                case Opcode.AffectFG:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'fg id', true).mapArgument(curByteCode, 0),
-                     readExpression(reader, 'effect', true).mapArgument(curByteCode, 1),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'fg id'),
+                     ...readExpressions(reader, 'effect'),
                   );
+                  instruction.expressions[0].mapArgument(curByteCode, 0, 'fg id');
+                  instruction.expressions[1].mapArgument(curByteCode, 1, 'effect');
                   break;
                case Opcode.LoadFG3:
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'image1 name').mapImage(imageNames),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'image1 name').mapImage(imageNames, 'image1 name'),
                   );
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'image2 name').mapImage(imageNames),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'image2 name').mapImage(imageNames, 'image2 name'),
                   );
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'image3 name').mapImage(imageNames),
-                     readExpression(reader, 'dx1', true),
-                     readExpression(reader, 'dx2', true),
-                     readExpression(reader, 'dx3', true),
-                     readExpression(reader, 'mode', true),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'image3 name').mapImage(imageNames, 'image3 name'),
+                     ...readExpressions(reader, 'dx1'),
+                     ...readExpressions(reader, 'dx2'),
+                     ...readExpressions(reader, 'dx3'),
+                     ...readExpressions(reader, 'mode'),
                   );
                   break;
                case Opcode.HideDialog:
                case Opcode.ShowDialog:
                   break;
                case Opcode.MarkChoiceId:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'a1', true),
-                     readExpression(reader, 'a2', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'a1'),
+                     ...readExpressions(reader, 'a2'),
                   );
                   break;
                case Opcode.ShowChapter:
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'image name').mapImage(imageNames),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'image name').mapImage(imageNames, 'image name'),
                   );
                   break;
                case Opcode.Delay:
                   // this can be actually a wait-interaction command 
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'nFrame', true),
-                  );
+                  instruction.expressions = readExpressions(reader, 'nFrame');
                   break;
                case Opcode.ShowClock:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'hour', true),
-                     readExpression(reader, 'minute', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'hour'),
+                     ...readExpressions(reader, 'minute'),
                   );
                   break;
                case Opcode.StartAnim:
                case Opcode.CloseAnim:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'animId', true).mapArgument(curByteCode, 0),
-                  );
+                  instruction.expressions = readExpressions(reader, 'animId');
+                  instruction.expressions[0].mapArgument(curByteCode, 0, 'animId');
                   break;
                case Opcode.MarkLocationId:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'a1', true),
-                  );
+                  instruction.expressions = readExpressions(reader, 'a1');
                   break;
                case Opcode.LoadBGKeepFG:
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'bg name').mapImage(imageNames),
-                     readExpression(reader, 'mode1', true),
-                     readExpression(reader, 'mode2', true),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'bg name').mapImage(imageNames, 'bg name'),
+                     ...readExpressions(reader, 'mode1'),
+                     ...readExpressions(reader, 'mode2'),
                   );
                   break;
                case Opcode.Unk2B:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'a1', true),
-                  );
+                  instruction.expressions = readExpressions(reader, 'a1');
                   break;
                case Opcode.UnlockImage:
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'image name').mapImage(imageNames),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'image name').mapImage(imageNames, 'image name'),
                   );
                   break;
                case Opcode.PlayMovie:
-                  opcodeInfo.expressions.push(
+                  instruction.expressions.push(
                      readCStringExpr(reader, 'video name'),
                   );
                   break;
-               case Opcode.Unk3B:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'a1', true),
+               case Opcode.Unk3A:
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'a1'),
+                     ...readExpressions(reader, 'a2'),
+                     ...readExpressions(reader, 'a3'),
                   );
+                  break;
+               case Opcode.Unk3B:
+                  instruction.expressions = readExpressions(reader, 'a1');
                   break;
                case Opcode.Unk3C:
                   break;
                case Opcode.LoadBGCrop:
                   skipPadding(reader, 4);
-                  opcodeInfo.expressions.push(
-                     readRawInt16Expr(reader, 'bg name').mapImage(imageNames),
-                     readExpression(reader, 'mode1', true),
-                     readExpression(reader, 'mode2', true),
-                     readExpression(reader, 'x', true),
-                     readExpression(reader, 'y', true),
-                     readExpression(reader, 'hx', true),
-                     readExpression(reader, 'hy', true),
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'bg name').mapImage(imageNames, 'bg name'),
+                     ...readExpressions(reader, 'mode1'),
+                     ...readExpressions(reader, 'mode2'),
+                     ...readExpressions(reader, 'x'),
+                     ...readExpressions(reader, 'y'),
+                     ...readExpressions(reader, 'hx'),
+                     ...readExpressions(reader, 'hy'),
                   );
                   break;
                case Opcode.TweenZoom:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'x', true),
-                     readExpression(reader, 'y', true),
-                     readExpression(reader, 'hx', true),
-                     readExpression(reader, 'hy', true),
-                     readExpression(reader, 'duration', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'x'),
+                     ...readExpressions(reader, 'y'),
+                     ...readExpressions(reader, 'hx'),
+                     ...readExpressions(reader, 'hy'),
+                     ...readExpressions(reader, 'duration'),
                   );
                   break;
                case Opcode.Unk43:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'a1', true),
-                  );
+                  instruction.expressions = readExpressions(reader, 'a1');
                   break;
                case Opcode.OverlayMono:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'nFrame', true),
-                     readExpression(reader, 'colorCode', true),
+                  instruction.expressions.push(
+                     ...readExpressions(reader, 'nFrame'),
+                     ...readExpressions(reader, 'colorCode'),
                   );
                   break;
                case Opcode.SetDialogColor:
-                  opcodeInfo.expressions.push(
-                     readExpression(reader, 'colorCode', true).mapArgument(curByteCode, 0),
-                  );
+                  instruction.expressions = readExpressions(reader, 'colorCode');
+                  instruction.expressions[0].mapArgument(curByteCode, 0, 'colorCode');
                   break;
                default:
                   throw Error(`Unknown opcode: 0x${curByteCode.toString(16)}.`);
             }
          }
 
-         opcodeInfo.code = curByteCode;
-         opcodeInfo.position = curOpcodePos;
-         opcodeInfo.bytecodes = reader.buffer.subarray(curRelOpcodePos, reader.pos);
-         opcodeInfo.labeled = labelSet.has(opcodeInfo.position);
-         opcodeInfos.push(opcodeInfo);
+         instruction.code = curByteCode;
+         instruction.position = curOpcodePos;
+         instruction.bytecodes = reader.buffer.subarray(curRelOpcodePos, reader.pos);
+         instruction.labeled = labelSet.has(instruction.position);
+         instructions.push(instruction);
 
          curOpcodeType = -1;
       }
    } catch (err) {
-      if (curOpcodeType === OpcodeType.MetaOpcode)
+      if (curOpcodeType === InstructionType.Meta)
          addContext(err, ` at MetaOpcode.${MetaOpcodeName(curByteCode)}`);
-      else if (curOpcodeType === OpcodeType.FlowOpcode)
+      else if (curOpcodeType === InstructionType.Flow)
          addContext(err, ` at FlowOpcode.${FlowOpcodeName(curByteCode)}`);
-      else if (curOpcodeType === OpcodeType.Opcode)
+      else if (curOpcodeType === InstructionType.Opcode)
          addContext(err, ` at Opcode.${OpcodeName(curByteCode)}`);
       addContext(err, ` at position 0x${curOpcodePos.toString(16)}`);
       throw err;
    }
 
-   return opcodeInfos;
+   return instructions;
 }

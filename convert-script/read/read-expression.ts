@@ -1,137 +1,185 @@
+import { makeHexPad2 } from '../../utils/string';
 import { BufferTraverser } from '../../utils/buffer-wrapper';
 import { addContext } from '../../utils/error';
-import { makeHexPad2 } from '../../utils/string';
-import { Expression, ExpressionType, Operator } from '../expression';
+import { Expression, ExpressionType, Operator } from '../../convert-script/expression';
 import { VARIABLE_MAP } from '../write/variable_map';
-import { skipPadding } from './skip-padding';
 
 function createRawExpr(value: number | string): Expression {
    return new Expression({ type: ExpressionType.Const, value });
 }
 
-export function readCStringExpr(reader: BufferTraverser, exprName: string): Expression {
+export function readCStringExpr(reader: BufferTraverser, exprName?: string): Expression {
    try {
       return createRawExpr(reader.readCASCII());
    } catch (err) {
-      addContext(err, ` at exprName '${exprName}'`);
+      if (exprName)
+         addContext(err, ` at exprName '${exprName}'`);
       throw err;
    }
 }
 
-export function readRawInt16Expr(reader: BufferTraverser, exprName: string): Expression {
+export function readRawInt16Expr(reader: BufferTraverser, exprName?: string): Expression {
    try {
       return createRawExpr(reader.readUInt16());
    } catch (err) {
-      addContext(err, ` at exprName '${exprName}'`);
+      if (exprName)
+         addContext(err, ` at exprName '${exprName}'`);
       throw err;
    }
 }
 
-export function readRawByteExpr(reader: BufferTraverser, exprName: string): Expression {
+export function readRawByteExpr(reader: BufferTraverser, exprName?: string): Expression {
    try {
       return createRawExpr(reader.readByte());
    } catch (err) {
-      addContext(err, ` at exprName '${exprName}'`);
+      if (exprName)
+         addContext(err, ` at exprName '${exprName}'`);
       throw err;
    }
 }
 
-export function readExpression(reader: BufferTraverser,
-   exprName: string, hasPadding = false, paddingSize: 1 | 2 = 2): Expression {
+export function readExpressions(reader: BufferTraverser, exprName: string): Expression[] {
    try {
-      const mode = reader.readByte();
-      let rs: Expression;
-
-      from_get_expression_routine:
+      let endReached = false;
+      const resultExpressions: Expression[] = [];
+      let mode = reader.readByte();
       do {
-         if (mode >= 0xc0 && mode <= 0xcf) {
-            const config = [mode - 0xc0, reader.readByte(), reader.readByte(), reader.readByte(), reader.readByte()];
-            rs = new Expression({
-               type: ExpressionType.Config,
-               value: config,
-            });
-            hasPadding = false; // mode CX never have padding as far as I know
-            break from_get_expression_routine;
-         }
-         if (mode >= 0xa0 && mode <= 0xaf) {
-            const a = reader.readByte();
-            rs = new Expression({
-               type: ExpressionType.Const,
-               value: 256 * (mode - 0xA0) + a,
-            });
-            break from_get_expression_routine;
-         }
-         if (mode >= 0xb0 && mode <= 0xbf) {
-            const a = reader.readByte();
-            rs = new Expression({
-               type: ExpressionType.Const,
-               value: 256 * (mode - 0xBF) + (a - 0x100),
-            });
-            break from_get_expression_routine;
-         }
-         if (mode >= 0x80 && mode <= 0x8f) {
-            const a = mode - 0x80;
-            rs = new Expression({
-               type: ExpressionType.Const,
-               value: a,
-            });
-            break from_get_expression_routine;
-         }
-         if (mode === 0xe0) {
-            const r = reader.readByte();
-            const g = reader.readByte();
-            const b = reader.readByte();
-            rs = new Expression({
-               type: ExpressionType.RGB,
-               value: [r, g, b],
-            });
-            break from_get_expression_routine;
-         }
+         let rs: Expression;
 
-         switch (mode) {
-            case 0x14:
-               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Assign });
+         from_get_expression_routine:
+         do {
+            if (mode >= 0xc0 && mode <= 0xcf) {
+               const config = [mode - 0xc0, reader.readByte(), reader.readByte()];
+               rs = new Expression({
+                  type: ExpressionType.Config,
+                  value: config,
+               });
                break from_get_expression_routine;
-            case 0x17:
-               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.AddAssign });
+            }
+            if (mode >= 0xa0 && mode <= 0xaf) {
+               const mostByte = mode - 0xA0;
+               const leastByte = reader.readByte();
+               rs = new Expression({
+                  type: ExpressionType.Const,
+                  value: (mostByte << 8) + leastByte,
+               });
                break from_get_expression_routine;
-            case 0x0c:
-               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Equal });
+            }
+            if (mode >= 0xb0 && mode <= 0xbf) {
+               const mostByte = mode - 0xb0;
+               const leastByte = reader.readByte();
+               rs = new Expression({
+                  type: ExpressionType.Const,
+                  value: ((mostByte << 8) + leastByte) | 0xFFFFF000,
+               });
                break from_get_expression_routine;
-            case 0x0d:
-               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.NotEqual });
+            }
+            if (mode >= 0x80 && mode <= 0x8f) {
+               const value = mode - 0x80;
+               rs = new Expression({
+                  type: ExpressionType.Const,
+                  value: value,
+               });
                break from_get_expression_routine;
-            case 0x0e:
-               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.LessThanOrEqual });
+            }
+            if (mode === 0xe0) {
+               const r = reader.readByte();
+               const g = reader.readByte();
+               const b = reader.readByte();
+               const a = reader.readByte(); // this byte is always zero or unused
+               rs = new Expression({
+                  type: ExpressionType.RGBA,
+                  value: [r, g, b, a],
+               });
                break from_get_expression_routine;
-            case 0x0f:
-               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.GreaterThanOrEqual });
-               break from_get_expression_routine;
-            case 0x10:
-               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.LessThan });
-               break from_get_expression_routine;
-            case 0x11:
-               rs = new Expression({ type: ExpressionType.Operator, operator: Operator.GreaterThan });
-               break from_get_expression_routine;
-         }
+            }
 
-         const [a1, a2] = [mode, reader.readByte()];
+            switch (mode) {
+               case 0x14:
+                  rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Assign });
+                  break from_get_expression_routine;
+               case 0x17:
+                  rs = new Expression({ type: ExpressionType.Operator, operator: Operator.AddAssign });
+                  break from_get_expression_routine;
+               case 0x0c:
+                  rs = new Expression({ type: ExpressionType.Operator, operator: Operator.Equal });
+                  break from_get_expression_routine;
+               case 0x0d:
+                  rs = new Expression({ type: ExpressionType.Operator, operator: Operator.NotEqual });
+                  break from_get_expression_routine;
+               case 0x0e:
+                  rs = new Expression({ type: ExpressionType.Operator, operator: Operator.LessThanOrEqual });
+                  break from_get_expression_routine;
+               case 0x0f:
+                  rs = new Expression({ type: ExpressionType.Operator, operator: Operator.GreaterThanOrEqual });
+                  break from_get_expression_routine;
+               case 0x10:
+                  rs = new Expression({ type: ExpressionType.Operator, operator: Operator.LessThan });
+                  break from_get_expression_routine;
+               case 0x11:
+                  rs = new Expression({ type: ExpressionType.Operator, operator: Operator.GreaterThan });
+                  break from_get_expression_routine;
+            }
 
-         if (a1 === 0x28 && a2 === 0x0a) {
-            const kind = reader.readByte();
-            const name = reader.readByte();
-            const marker = reader.readByte();
-            if (marker !== 0x14)
+            const [a1, a2] = [mode, reader.readByte()];
+            reader.pos--;
+
+            if (a1 === 0x28 && a2 === 0x0a) {
+               rs = new Expression({
+                  type: ExpressionType.VariableRef,
+               });
+               break from_get_expression_routine;
+            }
+            if (a1 === 0x2d && a2 === 0x0a) {
+               rs = new Expression({
+                  type: ExpressionType.VariableRef2,
+               });
+               break from_get_expression_routine;
+            }
+            if (a1 === 0x33 && a2 === 0x0a) {
+               rs = new Expression({
+                  type: ExpressionType.FunctionCall,
+                  name: 'random',
+               });
+               break from_get_expression_routine;
+            }
+            // eslint-disable-next-line no-constant-condition
+         } while (false);
+
+         if (rs == null)
+            throw Error(`Expected a valid expression, but got an unknown value: ${mode}.`);
+         resultExpressions.push(rs);
+
+         reader.readByte(); // skip trash value
+
+         if ((mode = reader.readByte()) === 0)
+            endReached = true;
+
+      } while (endReached === false);
+
+      for (let i = 0; i < resultExpressions.length; i++) {
+         const expr = resultExpressions[i];
+         if (expr.type === ExpressionType.FunctionCall) {
+            expr.args = resultExpressions.splice(i + 1, 1);
+            if (expr.args[0].type !== ExpressionType.Const)
                throw Error(
-                  `Expected 0x14 as variable expression ending marker, got 0x${marker.toString(16)}.'`);
+                  `Expected a const expression after random function call, get type 0x${makeHexPad2(expr.args[0].type)}.`);
+         }
+         else if (expr.type === ExpressionType.VariableRef) {
+            const varExpr = resultExpressions.splice(i + 1, 1)[0];
+            if (varExpr.type !== ExpressionType.Const)
+               throw Error(
+                  `Expected a const expression after random function call, get type 0x${makeHexPad2(varExpr.type)}.`);
+            const kind = <number>varExpr.value >>> 8;
+            const name = <number>varExpr.value & 0xFF;
             let fullName: string;
-            if (kind === 0xa0)
+            if (kind === 0x0)
                fullName = 'dim_';
-            else if (kind === 0xa2)
+            else if (kind === 0x2)
                fullName = 'eff_';
-            else if (kind === 0xa3)
+            else if (kind === 0x3)
                fullName = 'sys_';
-            else if (kind === 0xa4) {
+            else if (kind === 0x4) {
                if (name > 0 && name <= 0x1f)
                   fullName = 'g_';
                else
@@ -140,42 +188,19 @@ export function readExpression(reader: BufferTraverser,
                throw Error(`Invalid variable kind: 0x${kind.toString(16)}.`);
             }
             fullName += makeHexPad2(name);
-            rs = new Expression({
-               type: ExpressionType.Variable,
-               name: VARIABLE_MAP[fullName] ?? fullName,
-            });
-            break from_get_expression_routine;
+            expr.name = VARIABLE_MAP[fullName] ?? fullName;
          }
-         if (a1 === 0x33 && a2 === 0x0a) {
-            let arg: Expression;
-            try {
-               arg = readExpression(reader, 'maxValue');
-            } catch (err) {
-               addContext(err, ' at function random');
-               throw err;
-            }
-            const marker = reader.readByte();
-            if (marker !== 0x14)
+         else if (expr.type === ExpressionType.VariableRef2) {
+            const varExpr = resultExpressions.splice(i + 1, 1)[0];
+            if (varExpr.type !== ExpressionType.Const)
                throw Error(
-                  `Expected 0x14 as variable expression ending marker, got 0x${marker.toString(16)}.'`);
-            rs = new Expression({
-               type: ExpressionType.FunctionCall,
-               name: 'random',
-               funcArgs: [arg],
-            });
-            break from_get_expression_routine;
+                  `Expected a const expression after random function call, get type 0x${makeHexPad2(varExpr.type)}.`);
+            expr.name = `m_${makeHexPad2(varExpr.value as number)}`;
          }
-         // eslint-disable-next-line no-constant-condition
-      } while (false);
+      }
 
-      if (rs == null)
-         throw Error(`Expected a valid expression, but got an unknown value: ${mode}.`);
+      return resultExpressions;
 
-      if (hasPadding === true)
-         skipPadding(reader, paddingSize);
-
-      rs.exprName = exprName;
-      return rs;
    } catch (err) {
       addContext(err, ` for expression name '${exprName}'`);
       throw err;
