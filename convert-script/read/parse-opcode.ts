@@ -8,7 +8,7 @@ import { addContext } from '../../utils/error';
 import { ExpressionType } from '../expression';
 import { Instruction, InstructionType } from '../instruction';
 import { makeHexPad2 } from '../../utils/string';
-import { ENUM_MAP } from '../write/variable_map';
+import { ENUM_MAP } from '../variable_map';
 
 type Params = {
    bytecodes: Buffer,

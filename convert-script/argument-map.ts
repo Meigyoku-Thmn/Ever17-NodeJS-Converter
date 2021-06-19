@@ -1,4 +1,4 @@
-import { FlowOpcode, Opcode } from '../../convert-script/opcode';
+import { FlowOpcode, Opcode } from './opcode';
 
 type PropValueOf<T> = T[keyof T];
 type ArgumentValue = Record<number, string>;

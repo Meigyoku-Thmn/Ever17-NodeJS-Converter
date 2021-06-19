@@ -2,7 +2,7 @@ import { makeHexPad2 } from '../../utils/string';
 import { BufferTraverser } from '../../utils/buffer-wrapper';
 import { addContext } from '../../utils/error';
 import { Expression, ExpressionType, Operator } from '../../convert-script/expression';
-import { VARIABLE_MAP } from '../write/variable_map';
+import { VARIABLE_MAP } from '../variable_map';
 
 function createRawExpr(value: number | string): Expression {
    return new Expression({ type: ExpressionType.Const, value });

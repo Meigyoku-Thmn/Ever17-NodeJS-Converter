@@ -3,7 +3,7 @@ import { makeHexPad16, makeHexPad2 } from '../../utils/string';
 import { Expression, ExpressionType } from '../expression';
 import { Instruction, InstructionType, TextualInstructionType } from '../instruction';
 import { FlowOpcode, MetaOpcode, Opcode, OpcodeName, TextualOpcode, TextualOpcodeName } from '../opcode';
-import { OPERATOR_MAP } from './operator-map';
+import { OPERATOR_MAP } from '../operator-map';
 
 function generateExprStr(exprs: Expression[], separator = ' '): string {
    const exprStrArr: string[] = [];

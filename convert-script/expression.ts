@@ -1,6 +1,6 @@
 import { addContext } from '../utils/error';
 import { FlowOpcode, Opcode } from './opcode';
-import { FLOW_OPCODE_ARGUMENT_MAP, OPCODE_ARGUMENT_MAP } from './write/argument-map';
+import { FLOW_OPCODE_ARGUMENT_MAP, OPCODE_ARGUMENT_MAP } from './argument-map';
 
 export const enum ExpressionType {
    Operator, Const, Config, RGBA, VariableRef, VariableRef2, FunctionCall,

@@ -1,4 +1,4 @@
-import { Operator } from '../expression';
+import { Operator } from './expression';
 
 export const OPERATOR_MAP = {
    [Operator.Assign]: ':=',
