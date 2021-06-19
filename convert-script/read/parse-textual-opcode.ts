@@ -43,10 +43,10 @@ export function parseTextualInstructions(bytecodes: Buffer, pos: number): Textua
             case TextualOpcode.Wait:
             case TextualOpcode.Clear:
                break;
-            case TextualOpcode.Delay:
+            case TextualOpcode.Sleep:
                opcodeInfo.expressions = readExpressions(reader, 'duration');
                break;
-            case TextualOpcode.S: {
+            case TextualOpcode.MarkLog: {
                const expr = readExpressions(reader, 'unk'); // always zero
                if (expr[0].value !== 0)
                   throw Error(`Expected a zero-value expression, got value ${expr[0].value}.`);

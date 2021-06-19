@@ -1,12 +1,41 @@
-import { Opcode } from '../../convert-script/opcode';
+import { FlowOpcode, Opcode } from '../../convert-script/opcode';
 
 type PropValueOf<T> = T[keyof T];
 type ArgumentValue = Record<number, string>;
 type ArgumentConfig = Record<number, ArgumentValue>;
-type StatementName = PropValueOf<typeof Opcode>;
-type ArgumentMap = Partial<Record<StatementName, ArgumentConfig>>;
+type OpcodeStatementName = PropValueOf<typeof Opcode>;
+type OpcodeArgumentMap = Partial<Record<OpcodeStatementName, ArgumentConfig>>;
+type FlowOpcodeStatementName = PropValueOf<typeof FlowOpcode>;
+type FlowOpcodeArgumentMap = Partial<Record<FlowOpcodeStatementName, ArgumentConfig>>;
 
-export const ARGUMENT_MAP: ArgumentMap = {
+export const FLOW_OPCODE_ARGUMENT_MAP: FlowOpcodeArgumentMap = {
+   [FlowOpcode.Call]: {
+      0: {
+         332: 'SHAKE_FD_1',
+         336: 'SHAKE_FD_2',
+         338: 'SHAKE_FD_4',
+         346: 'SHAKE_HARD_FD_1',
+      },
+   },
+   [FlowOpcode.TurnMode]: {
+      1: {
+         3: 'OFF',
+         4: 'ON',
+      },
+   },
+   [FlowOpcode.TurnFlagOn]: {
+      0: {
+         256: 'NO_GAME_SAVE',
+      },
+   },
+   [FlowOpcode.TurnFlagOff]: {
+      0: {
+         256: 'NO_GAME_SAVE',
+      },
+   }
+};
+
+export const OPCODE_ARGUMENT_MAP: OpcodeArgumentMap = {
    [Opcode.RemoveFG3]: {
       0: {
          1: '1 0 0',

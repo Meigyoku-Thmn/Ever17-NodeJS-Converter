@@ -93,7 +93,7 @@ export function parseInstructions(params: Params): Instruction[] {
                      null, readRawInt16Expr(reader, 'jump target').mapOffset(labels, 'jump target')
                   ]];
                   break;
-               case FlowOpcode.Sleep:
+               case FlowOpcode.Delay:
                   instruction.expressions = readExpressions(reader, 'duration');
                   break;
                case FlowOpcode.Switch: {
@@ -113,32 +113,39 @@ export function parseInstructions(params: Params): Instruction[] {
                   reader.pos -= 2;
                   break;
                }
-               case FlowOpcode.MUnk28:
-               case FlowOpcode.MUnk06:
+               case FlowOpcode.Suspend:
                   break;
-               case FlowOpcode.MUnk0D:
+               case FlowOpcode.Call:
+                  if (readExpressions(reader, 'scriptIndex')[0].value !== 1)
+                     throw Error('Expected expression value 1 as argument 1.');
+                  instruction.expressions.push(
+                     readRawInt16Expr(reader, 'labelOrdinal'),
+                  );
+                  instruction.expressions[0].mapFlowArgument(curByteCode, 0);
+                  break;
+               case FlowOpcode.TurnFlagOn:
+               case FlowOpcode.TurnFlagOff:
+                  instruction.expressions = readExpressions(reader, 'flagIndex');
+                  instruction.expressions[0].mapFlowArgument(curByteCode, 0);
+                  break;
+               case FlowOpcode.TurnFlag25On:
+                  break;
+               case FlowOpcode.GotoIfFlag:
+                  instruction.expressions.push(
+                     readRawByteExpr(reader, 'left operand'),
+                     ...readExpressions(reader, 'bit mask'),
+                     ...readExpressions(reader, 'mode'),
+                  );
+                  instruction.switches = [[
+                     null, readRawInt16Expr(reader, 'jump target').mapOffset(labels, 'jump target')
+                  ]];
+                  break;
+               case FlowOpcode.TurnMode:
                   instruction.expressions.push(
                      ...readExpressions(reader, 'a1'),
-                     readRawInt16Expr(reader, 'a2'),
-                  );
-                  break;
-               case FlowOpcode.MUnk12:
-               case FlowOpcode.MUnk13:
-                  instruction.expressions = readExpressions(reader, 'a1');
-                  break;
-               case FlowOpcode.MUnk15:
-                  instruction.expressions.push(
-                     readRawByteExpr(reader, 'a1'),
-                     ...readExpressions(reader, 'a2'),
-                     ...readExpressions(reader, 'a3'),
-                     readRawInt16Expr(reader, 'a4'),
-                  );
-                  break;
-               case FlowOpcode.MUnk19:
-                  instruction.expressions.push(
-                     ...readExpressions(reader, 'a1'),
                      ...readExpressions(reader, 'a2'),
                   );
+                  instruction.expressions[1].mapFlowArgument(curByteCode, 1);
                   break;
                default:
                   throw Error(`Unknown flow opcode: 0x${curByteCode.toString(16)}.`);
@@ -313,22 +320,17 @@ export function parseInstructions(params: Params): Instruction[] {
                      readRawInt16Expr(reader, 'image name').mapImage(imageNames, 'image name'),
                   );
                   break;
-               case Opcode.PlayMovie:
+               case Opcode.OpenMovie:
                   instruction.expressions.push(
                      readCStringExpr(reader, 'video name'),
                   );
                   break;
-               case Opcode.Unk3A:
-                  instruction.expressions.push(
-                     readRawInt16Expr(reader, 'a1'),
-                     ...readExpressions(reader, 'a2'),
-                     ...readExpressions(reader, 'a3'),
-                  );
+               case Opcode.StopMovie:
                   break;
-               case Opcode.Unk3B:
+               case Opcode.SetMovieRect:
                   instruction.expressions = readExpressions(reader, 'a1');
                   break;
-               case Opcode.Unk3C:
+               case Opcode.PlayMovie:
                   break;
                case Opcode.LoadBGCrop:
                   skipPadding(reader, 4);
@@ -351,7 +353,7 @@ export function parseInstructions(params: Params): Instruction[] {
                      ...readExpressions(reader, 'duration'),
                   );
                   break;
-               case Opcode.Unk43:
+               case Opcode.SetVolume:
                   instruction.expressions = readExpressions(reader, 'a1');
                   break;
                case Opcode.OverlayMono:

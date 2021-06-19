@@ -13,17 +13,17 @@ export function MetaOpcodeName(value: MetaOpcode): string {
 export const enum FlowOpcode {
    // Mark the end of main opcode section
    End = 0x00,
-   Sleep = 0x05,
+   Delay = 0x05,
+   Suspend = 0x06,
    Goto = 0x07,
    GotoIf = 0x0a,
-   MUnk06 = 0x06,
-   MUnk0D = 0x0d,
-   MUnk12 = 0x12,
-   MUnk13 = 0x13,
-   MUnk15 = 0x15,
-   MUnk19 = 0x19,
-   Switch = 0x26,
-   MUnk28 = 0x28,
+   Call = 0x0d,
+   TurnFlagOn = 0x12,
+   TurnFlagOff = 0x13,
+   GotoIfFlag = 0x15, // relate to video, possibly part of a polling loop that check for video playback completion
+   TurnMode = 0x19, // relate to video, possibly preparation and cleanup code
+   Switch = 0x26, // this is actually 0x26 (switch) and 0x27 (goto if case)
+   TurnFlag25On = 0x28,
 }
 
 const _FlowOpcode = eval('FlowOpcode');
@@ -61,13 +61,13 @@ export const enum Opcode {
    LoadBGKeepFG = 0x27,
    Unk2B = 0x2b,
    UnlockImage = 0x37,
-   PlayMovie = 0x39,
-   Unk3A = 0x3A,
-   Unk3B = 0x3B,
-   Unk3C = 0x3C,
+   OpenMovie = 0x39,
+   StopMovie = 0x3A,
+   SetMovieRect = 0x3B,
+   PlayMovie = 0x3C,
    LoadBGCrop = 0x40,
    TweenZoom = 0x41,
-   Unk43 = 0x43,
+   SetVolume = 0x43,
    OverlayMono = 0x45,
    SetDialogColor = 0x46,
 }
@@ -78,7 +78,7 @@ export function OpcodeName(value: Opcode): string {
 }
 
 export const enum TextualOpcode {
-   // Mark the end of textual segment, not a real opcode
+   // Mark the end of textual segment, return to main routine
    End = 0x00,
    // Yeah, you have to place the new line opcode manually, or the game will eventually crash
    NewLine = 0x01,
@@ -86,11 +86,9 @@ export const enum TextualOpcode {
    // Clear text, reset text state
    Clear = 0x03,
    // Thread sleep by nFrame
-   Delay = 0x04,
-   // No visual effect, potentially a command that can change text speed, but it's unused in the game
-   // or, this is related to back log system, which I don't care about.
-   // I think this opcode can be ignored
-   S = 0x05,
+   Sleep = 0x04,
+   // This is related to back log system, which I don't care about.
+   MarkLog = 0x05,
    Choice = 0x0b,
    WaitVoice = 0x0c,
    Voice = 0x0d,

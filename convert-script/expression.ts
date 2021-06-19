@@ -1,6 +1,6 @@
 import { addContext } from '../utils/error';
-import { Opcode } from './opcode';
-import { ARGUMENT_MAP } from './write/argument-map';
+import { FlowOpcode, Opcode } from './opcode';
+import { FLOW_OPCODE_ARGUMENT_MAP, OPCODE_ARGUMENT_MAP } from './write/argument-map';
 
 export const enum ExpressionType {
    Operator, Const, Config, RGBA, VariableRef, VariableRef2, FunctionCall,
@@ -83,7 +83,22 @@ export class Expression {
             throw Error('Only number expression can be used to map argument.');
          if (typeof (this.value) !== 'number')
             throw Error('Only number expression can be used to map argument.');
-         this.name = ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
+         this.name = OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
+         return this;
+      } catch (err) {
+         if (exprName)
+            addContext(err, ` at exprName '${exprName}'`);
+         throw err;
+      }
+   }
+
+   mapFlowArgument(opcode: FlowOpcode, ordinal: number, exprName?: string): Expression {
+      try {
+         if (this.type !== ExpressionType.Const)
+            throw Error('Only number expression can be used to map argument.');
+         if (typeof (this.value) !== 'number')
+            throw Error('Only number expression can be used to map argument.');
+         this.name = FLOW_OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
          return this;
       } catch (err) {
          if (exprName)

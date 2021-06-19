@@ -112,8 +112,32 @@ export function dumpCode(instructions: Instruction[], outputPath: string): void 
                   fs.writeSync(fd, `case ${name ?? value} goto ${makeHexPad16(target)}\n`);
                break;
             }
-            case FlowOpcode.Sleep:
-               fs.writeSync(fd, `sleep ${instruction.expressions[0].value}`);
+            case FlowOpcode.Delay:
+               fs.writeSync(fd, `delay ${instruction.expressions[0].value}`);
+               break;
+            case FlowOpcode.Suspend:
+               fs.writeSync(fd, 'suspend');
+               break;
+            case FlowOpcode.Call:
+               fs.writeSync(fd, `call_system ${generateExprStr(instruction.expressions)}`);
+               break;
+            case FlowOpcode.TurnFlagOff:
+               fs.writeSync(fd, `turn_off ${generateExprStr(instruction.expressions)}`);
+               break;
+            case FlowOpcode.TurnFlagOn:
+               fs.writeSync(fd, `turn_on ${generateExprStr(instruction.expressions)}`);
+               break;
+            case FlowOpcode.TurnFlag25On:
+               fs.writeSync(fd, 'turn_on 37');
+               break;
+            case FlowOpcode.TurnMode:
+               fs.writeSync(fd, `turn_mode ${generateExprStr(instruction.expressions)}`);
+               break;
+            case FlowOpcode.GotoIfFlag:
+               fs.writeSync(fd, 'if_flag ');
+               fs.writeSync(fd, `(${instruction.expressions[1].value},${instruction.expressions[2].value})`);
+               fs.writeSync(fd, ` = ${instruction.expressions[0].value} `);
+               fs.writeSync(fd, `goto ${makeHexPad16(instruction.switches[0][1].target)}`);
                break;
             default:
                fs.writeSync(fd, `flow_unk_${makeHexPad2(instruction.code)}`);

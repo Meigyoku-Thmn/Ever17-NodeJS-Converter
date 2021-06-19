@@ -1,9 +1,9 @@
 {
    "fileRedirects": {
-      "op00_.scr": "ssbd.scr"
+      "op00.scr": "t_ep.scr"
    },
    "entryPointRedirects": {
-      "ssbd_.scr": "0x0000018f"
+      "t_ep.scr": "0x000000b7"
    },
    "patches": {
       "op00_.scr": [
