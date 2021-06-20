@@ -7,7 +7,7 @@ In short, the visual novel engine of Ever17 is essentially a [virtual machine](h
 
 An opcode, with or without arguments, is corresponding to an [instruction](https://en.wikipedia.org/wiki/Instruction_set_architecture). The engine executes instructions.
 
-For example, a script file can has instructions like this (pseudocode as example, not the actual code in the game):
+For example, a script file can have instructions like this (pseudocode as example, not the actual code in the game):
 
 ```js
 /* 1 */ yield ShowBackground('bg.bmp');
@@ -32,13 +32,15 @@ The engine can parse these instructions and does exactly:
 
 Pretty much a kind of [coroutine](https://en.wikipedia.org/wiki/Coroutine).
 
-There are 2 sets of opcodes: the main opcodes, and the textual opcodes.
+There are 4 sets of opcodes: the meta opcodes, the flow opcodes, the command opcodes, and the textual opcodes.
 
-The textual opcodes together make subroutines that the main opcodes can call into.
+The textual opcodes together make subroutines that the meta opcodes can call into.
 
 This page will document about how opcodes/instructions are stored in this file format, and how this file format is supposed to be read.
 
-Main opcodes and textual opcodes and how they works are documented separately in [SC3.Opcode.md](./SC3.Opcode.md) and [SC3.TextualOpcode.md](./SC3.TextualOpcode.md).
+Opcodes and how they works are documented separately in [SC3.Opcode.md](./SC3.Opcode.md) and [SC3.TextualOpcode.md](./SC3.TextualOpcode.md).
+
+In this file, if I mention "main opcodes", I means the meta opcodes, the flow opcodes and the command opcodes together.
 
 # Sequential Layout
 | No. | Name of segment            | Note |
@@ -66,7 +68,7 @@ struct Header {
 - `textualScriptOffset` is the absolute offset that points to the textual opcode index table;
 - `backgroundOffset` is the absolute offset that points to the image index table.
 
-`textualScriptOffset` and `backgroundOffset` can point to [EOF](https://en.wikipedia.org/wiki/End-of-file) (equal to the size of script file, not -1), that means (No. 4) with (No. 6) and (No. 5) with (No. 7) are zero-lengthed respectively. There are only 3 files has this case which both offsets point to EOF.
+`textualScriptOffset` and `backgroundOffset` can point to [EOF](https://en.wikipedia.org/wiki/End-of-file) (equal to the size of script file, not -1), that means (No. 4) with (No. 6) and (No. 5) with (No. 7) are zero-lengthed respectively. There are only 3 files that have this case which both offsets point to EOF.
 
 I believe the game doesn't even try to validate this, or anything, because this file format is meant to be interpreted for script execution, and it's the job of a certain compiler (which the devs used to generate script files) to validate.
 
@@ -106,9 +108,9 @@ So a script file can have (No. 3) begining like this:
 # Understanding about the idea of this file format
 *(I don't know how to do this properly, so I just leave critical points)*
 
-The virtual machine of this game is a stackless machine and the script itself is [non-structured](https://en.wikipedia.org/wiki/Non-structured_programming), it just execute instructions, so don't worry about a complexity level as high as the x86 CPU or whatnot.
+The virtual machine of this game is a stackless machine and the script itself is [non-structured](https://en.wikipedia.org/wiki/Non-structured_programming), it just execute instructions.
 
-I will not discuss about some system scripts that control the menus in the game. They are not necessary to be understood to re-implement this (which is the end goal).
+I will not discuss about some system scripts (`startup.scr` and `system.scr`) that control the menus and the system in the game. They are not necessary to be understood to re-implement this (which is the end goal).
 
 `op00.scr` is the entry script that is executed when you start a new game.
 
@@ -116,19 +118,22 @@ When execution bumps into a cross-script jump instruction, it can switch to anot
 
 When you load a save, the game will resume the execution at a position last time you save, with every flags/variables last time it accumulated.
 
-This game has 2 sets of opcode: the main opcodes and the textual opcodes.
-- The main opcodes control almost everything except text box displaying;
-- The textual opcodes control how text is displayed, play associated voice clip,... (anything related to displaying on text box).
+This game has 4 sets of opcode: the **meta opcodes**, the **flow opcodes**, the **command opcodes** and the **textual opcodes**.
 
-The textual opcodes have to be inside subroutines that are called into by the main opcodes. When subroutine ends, the execution returns to the next main opcode.
+* The **meta opcodes** are the prefixes of the 3 remaining opcode kind, also has an opcode that calls into textual subroutine;
+* The **flow opcodes** control the flow of script (branch, loop, call), as well as control the state of the game engine;
+* The **command opcodes** control almost everything visually except text box displaying;
+* The **textual opcodes** control how text is displayed, play associated voice clip,... (anything related to displaying on text box).
+
+The textual opcodes have to be inside subroutines that are called into by a meta opcode. When subroutine ends, the execution returns to the next main opcode.
 
 The main script segment (No. 3) is really a sequence of main opcodes, while the main script index table (No. 2) serves as a "[label](https://en.wikipedia.org/wiki/Label_(computer_science))" table, each offset of it is a label that points to a specific opcode on the main script.
 
-A few opcodes of main script has the same effect as a "[goto](https://en.wikipedia.org/wiki/Goto)" statment that can jump to other opcodes on the main script. They accept an ordinal number that point to a label, the game can read the label to know where to jump to (relative jump by [jump table](https://en.wikipedia.org/wiki/Branch_table));
+A few opcodes of main script have the same effect as a "[goto](https://en.wikipedia.org/wiki/Goto)" statment that can jump to other opcodes on the main script. They accept an ordinal number that point to a label, the game can read the label to know where to jump to (relative jump by [jump table](https://en.wikipedia.org/wiki/Branch_table));
 
 This game also uses an image segment (No. 7), it's a sequence of [null-terminated strings](https://en.wikipedia.org/wiki/Null-terminated_string), each string is an image file name pointed by a corresponding index in (No. 5).
 
-Somewhat similar to label, some opcodes access and load image by accepting an ordinal number that points to a index that points to an image name. You can say that (No. 7) is a [string pool](https://en.wikipedia.org/wiki/String_interning), it exists because images are reused a lot in scripts (Although it was done poorly as there are some duplicated image names).
+Somewhat similar to label, some opcodes access and load image by accepting an ordinal number that points to a index that points to an image name. You can say that (No. 7) is a [string pool](https://en.wikipedia.org/wiki/String_interning), it exists because images are reused a lot in scripts (Although it was done poorly as there are some duplicated image names in several script files).
 
 The textual script segment (No. 6) is a sequence of subroutines, each subroutine is a sequence of textual opcodes. Each subroutine is indexed by the textual script index table (No. 4). The main script calls into a particular subroutine by looking it up on the index table, the same way as label in main script.
 
