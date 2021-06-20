@@ -16,8 +16,13 @@ function decodeCP932(...bytes: number[]): string {
 }
 
 function decodeCP1252(...bytes: number[]): string {
+   if (bytes.every(e => e < 0x80)) {
+      let rs = '';
+      for (const b of bytes)
+         rs += String.fromCharCode(b);
+      return rs;
+   }
    const rs = CP1252.write(Buffer.from(bytes));
-   CP932.end();
    return rs;
 }
 

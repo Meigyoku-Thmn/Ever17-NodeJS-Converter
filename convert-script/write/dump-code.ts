@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { File, BinaryWriter } from 'csbinary';
 import { makeHexPad16, makeHexPad2 } from '../../utils/string';
 import { Expression, ExpressionType } from '../expression';
 import { Instruction, InstructionType, TextualInstructionType } from '../instruction';
@@ -34,64 +35,76 @@ function generateExprStr(exprs: Expression[], separator = ' '): string {
    return exprStrArr.join(separator);
 }
 
+function createFileForWriting(path: string): BinaryWriter {
+   return new BinaryWriter(File(fs.openSync(path, 'w')), 'utf8');
+}
+
+function writeString(hdl: BinaryWriter, str: string): void {
+   hdl.writeRawString(str);
+}
+
+function closeFile(hdl: BinaryWriter): void {
+   hdl.close();
+}
+
 export function dumpCode(instructions: Instruction[], outputPath: string): void {
-   const fd = fs.openSync(outputPath, 'w');
+   const hdl = createFileForWriting(outputPath);
 
    for (const instruction of instructions) {
       // offset tag and hex dump
-      fs.writeSync(fd, '[');
+      writeString(hdl, '[');
       if (instruction.labeled)
-         fs.writeSync(fd, 'labeled:');
-      fs.writeSync(fd, `${makeHexPad16(instruction.position)}]`);
-      fs.writeSync(fd, [...instruction.bytecodes].map(b => makeHexPad2(b)).join(' '));
-      fs.writeSync(fd, ': ');
+         writeString(hdl, 'labeled:');
+      writeString(hdl, `${makeHexPad16(instruction.position)}]`);
+      writeString(hdl, [...instruction.bytecodes].map(b => makeHexPad2(b)).join(' '));
+      writeString(hdl, ': ');
 
       // pseudo-code
       if (instruction.type === InstructionType.Meta) {
          switch (instruction.code) {
             case MetaOpcode.Variable:
-               fs.writeSync(fd, `${generateExprStr(instruction.expressions)}`);
+               writeString(hdl, `${generateExprStr(instruction.expressions)}`);
                break;
             case MetaOpcode.Text:
-               fs.writeSync(fd, 'text\n');
-               fs.writeSync(fd, `__[${makeHexPad16(instruction.textualInstructions[0].position)}]`);
+               writeString(hdl, 'text\n');
+               writeString(hdl, `__[${makeHexPad16(instruction.textualInstructions[0].position)}]`);
                for (const textInstruction of instruction.textualInstructions) {
                   if (textInstruction.type === TextualInstructionType.Text)
-                     fs.writeSync(fd, textInstruction.text);
+                     writeString(hdl, textInstruction.text);
                   else switch (textInstruction.code) {
                      case TextualOpcode.Style:
                         switch (textInstruction.expressions[0].value) {
                            case 0:
-                              fs.writeSync(fd, '{Emphasized}');
+                              writeString(hdl, '{Emphasized}');
                               break;
                            case 1:
-                              fs.writeSync(fd, '{Normal}');
+                              writeString(hdl, '{Normal}');
                               break;
                            case 4:
-                              fs.writeSync(fd, '{ResetStyle}');
+                              writeString(hdl, '{ResetStyle}');
                               break;
                            default:
-                              fs.writeSync(fd, '{StyleError}');
+                              writeString(hdl, '{StyleError}');
                         }
                         break;
                      case TextualOpcode.Choice:
-                        fs.writeSync(fd, `{${TextualOpcodeName(textInstruction.code)} ${textInstruction.expressions[0].value}\n`);
+                        writeString(hdl, `{${TextualOpcodeName(textInstruction.code)} ${textInstruction.expressions[0].value}\n`);
                         for (const [cond, text] of textInstruction.choices) {
                            if (cond != null)
-                              fs.writeSync(fd, `<${generateExprStr(cond)}>`);
-                           fs.writeSync(fd, text);
+                              writeString(hdl, `<${generateExprStr(cond)}>`);
+                           writeString(hdl, text);
                         }
-                        fs.writeSync(fd, '}');
+                        writeString(hdl, '}');
                         break;
                      default:
-                        fs.writeSync(fd, `{${TextualOpcodeName(textInstruction.code)}`);
+                        writeString(hdl, `{${TextualOpcodeName(textInstruction.code)}`);
                         if (textInstruction.expressions.length > 0)
-                           fs.writeSync(fd, ` ${generateExprStr(textInstruction.expressions)}`);
-                        fs.writeSync(fd, '}');
+                           writeString(hdl, ` ${generateExprStr(textInstruction.expressions)}`);
+                        writeString(hdl, '}');
                         break;
                   }
                }
-               fs.writeSync(fd, '\n');
+               writeString(hdl, '\n');
                break;
          }
       }
@@ -100,95 +113,95 @@ export function dumpCode(instructions: Instruction[], outputPath: string): void 
             case FlowOpcode.End:
                break;
             case FlowOpcode.Goto:
-               fs.writeSync(fd, `goto ${makeHexPad16(instruction.switches[0][1].target)}`);
+               writeString(hdl, `goto ${makeHexPad16(instruction.switches[0][1].target)}`);
                break;
             case FlowOpcode.GotoIf:
-               fs.writeSync(fd, `if ${generateExprStr(instruction.expressions)} `);
-               fs.writeSync(fd, `goto ${makeHexPad16(instruction.switches[0][1].target)}`);
+               writeString(hdl, `if ${generateExprStr(instruction.expressions)} `);
+               writeString(hdl, `goto ${makeHexPad16(instruction.switches[0][1].target)}`);
                break;
             case FlowOpcode.Switch: {
-               fs.writeSync(fd, `switch ${generateExprStr(instruction.expressions)}\n`);
+               writeString(hdl, `switch ${generateExprStr(instruction.expressions)}\n`);
                for (const [[{ value, name }], { target }] of instruction.switches)
-                  fs.writeSync(fd, `case ${name ?? value} goto ${makeHexPad16(target)}\n`);
+                  writeString(hdl, `case ${name ?? value} goto ${makeHexPad16(target)}\n`);
                break;
             }
             case FlowOpcode.Delay:
-               fs.writeSync(fd, `delay ${instruction.expressions[0].value}`);
+               writeString(hdl, `delay ${instruction.expressions[0].value}`);
                break;
             case FlowOpcode.Suspend:
-               fs.writeSync(fd, 'suspend');
+               writeString(hdl, 'suspend');
                break;
             case FlowOpcode.Call:
-               fs.writeSync(fd, `call_system ${generateExprStr(instruction.expressions)}`);
+               writeString(hdl, `call_system ${generateExprStr(instruction.expressions)}`);
                break;
             case FlowOpcode.TurnFlagOff:
-               fs.writeSync(fd, `turn_off ${generateExprStr(instruction.expressions)}`);
+               writeString(hdl, `turn_off ${generateExprStr(instruction.expressions)}`);
                break;
             case FlowOpcode.TurnFlagOn:
-               fs.writeSync(fd, `turn_on ${generateExprStr(instruction.expressions)}`);
+               writeString(hdl, `turn_on ${generateExprStr(instruction.expressions)}`);
                break;
             case FlowOpcode.TurnFlag25On:
-               fs.writeSync(fd, 'turn_on 37');
+               writeString(hdl, 'turn_on 37');
                break;
             case FlowOpcode.TurnMode:
-               fs.writeSync(fd, `turn_mode ${generateExprStr(instruction.expressions)}`);
+               writeString(hdl, `turn_mode ${generateExprStr(instruction.expressions)}`);
                break;
             case FlowOpcode.GotoIfFlag:
-               fs.writeSync(fd, 'if_flag ');
-               fs.writeSync(fd, `(${instruction.expressions[1].value},${instruction.expressions[2].value})`);
-               fs.writeSync(fd, ` = ${instruction.expressions[0].value} `);
-               fs.writeSync(fd, `goto ${makeHexPad16(instruction.switches[0][1].target)}`);
+               writeString(hdl, 'if_flag ');
+               writeString(hdl, `(${instruction.expressions[1].value},${instruction.expressions[2].value})`);
+               writeString(hdl, ` = ${instruction.expressions[0].value} `);
+               writeString(hdl, `goto ${makeHexPad16(instruction.switches[0][1].target)}`);
                break;
             default:
-               fs.writeSync(fd, `flow_unk_${makeHexPad2(instruction.code)}`);
+               writeString(hdl, `flow_unk_${makeHexPad2(instruction.code)}`);
                if (instruction.expressions.length > 0)
-                  fs.writeSync(fd, ` ${generateExprStr(instruction.expressions)}`);
+                  writeString(hdl, ` ${generateExprStr(instruction.expressions)}`);
          }
       }
       else if (instruction.type === InstructionType.Opcode) {
          switch (instruction.code) {
             case Opcode.SetFGOrder: {
-               fs.writeSync(fd, OpcodeName(instruction.code as Opcode));
-               fs.writeSync(fd, ' ');
+               writeString(hdl, OpcodeName(instruction.code as Opcode));
+               writeString(hdl, ' ');
                const code = instruction.expressions.map(e => e.value as number).toString();
                switch (code) {
                   // every values used in script 
                   case '0,1,2':
-                     fs.writeSync(fd, '4 2 1');
+                     writeString(hdl, '4 2 1');
                      break;
                   case '0,2,1':
-                     fs.writeSync(fd, '2 4 1');
+                     writeString(hdl, '2 4 1');
                      break;
                   case '1,0,2':
-                     fs.writeSync(fd, '4 1 2');
+                     writeString(hdl, '4 1 2');
                      break;
                   case '1,2,0':
-                     fs.writeSync(fd, '1 4 2');
+                     writeString(hdl, '1 4 2');
                      break;
                   case '2,0,1':
-                     fs.writeSync(fd, '2 1 4');
+                     writeString(hdl, '2 1 4');
                      break;
                   case '2,1,0':
-                     fs.writeSync(fd, '1 2 4');
+                     writeString(hdl, '1 2 4');
                      break;
                   case '0,1,255':
-                     fs.writeSync(fd, '4 2 1');
+                     writeString(hdl, '4 2 1');
                      break;
                   case '1,0,255':
-                     fs.writeSync(fd, '4 1 2');
+                     writeString(hdl, '4 1 2');
                      break;
                }
                break;
             }
             default:
-               fs.writeSync(fd, OpcodeName(instruction.code as Opcode));
+               writeString(hdl, OpcodeName(instruction.code as Opcode));
                if (instruction.expressions.length > 0)
-                  fs.writeSync(fd, ` ${generateExprStr(instruction.expressions)}`);
+                  writeString(hdl, ` ${generateExprStr(instruction.expressions)}`);
                break;
          }
       }
-      fs.writeSync(fd, '\n');
+      writeString(hdl, '\n');
    }
 
-   fs.closeSync(fd);
+   closeFile(hdl);
 }
