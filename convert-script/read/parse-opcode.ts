@@ -8,7 +8,7 @@ import { addContext } from '../../utils/error';
 import { ExpressionType } from '../expression';
 import { Instruction, InstructionType } from '../instruction';
 import { makeHexPad2 } from '../../utils/string';
-import { ENUM_MAP } from '../variable_map';
+import { ENUM_MAP } from './variable_map';
 
 type Params = {
    bytecodes: Buffer,
@@ -121,12 +121,12 @@ export function parseInstructions(params: Params): Instruction[] {
                   instruction.expressions.push(
                      readRawInt16Expr(reader, 'labelOrdinal'),
                   );
-                  instruction.expressions[0].mapFlowArgument(curByteCode, 0);
+                  // instruction.expressions[0].mapFlowArgument(curByteCode, 0);
                   break;
                case FlowOpcode.TurnFlagOn:
                case FlowOpcode.TurnFlagOff:
                   instruction.expressions = readExpressions(reader, 'flagIndex');
-                  instruction.expressions[0].mapFlowArgument(curByteCode, 0);
+                  // instruction.expressions[0].mapFlowArgument(curByteCode, 0);
                   break;
                case FlowOpcode.TurnFlag25On:
                   break;
@@ -145,7 +145,7 @@ export function parseInstructions(params: Params): Instruction[] {
                      ...readExpressions(reader, 'a1'),
                      ...readExpressions(reader, 'a2'),
                   );
-                  instruction.expressions[1].mapFlowArgument(curByteCode, 1);
+                  // instruction.expressions[1].mapFlowArgument(curByteCode, 1);
                   break;
                default:
                   throw Error(`Unknown flow opcode: 0x${curByteCode.toString(16)}.`);
@@ -234,8 +234,8 @@ export function parseInstructions(params: Params): Instruction[] {
                      ...readExpressions(reader, 'sum of ids'),
                      ...readExpressions(reader, 'mode'),
                   );
-                  instruction.expressions[0].mapArgument(curByteCode, 0, 'sum of ids');
-                  instruction.expressions[1].mapArgument(curByteCode, 1, 'mode');
+                  // instruction.expressions[0].mapArgument(curByteCode, 0, 'sum of ids');
+                  // instruction.expressions[1].mapArgument(curByteCode, 1, 'mode');
                   break;
                case Opcode.SetFGOrder:
                   instruction.expressions.push(
@@ -249,8 +249,8 @@ export function parseInstructions(params: Params): Instruction[] {
                      ...readExpressions(reader, 'fg id'),
                      ...readExpressions(reader, 'effect'),
                   );
-                  instruction.expressions[0].mapArgument(curByteCode, 0, 'fg id');
-                  instruction.expressions[1].mapArgument(curByteCode, 1, 'effect');
+                  // instruction.expressions[0].mapArgument(curByteCode, 0, 'fg id');
+                  // instruction.expressions[1].mapArgument(curByteCode, 1, 'effect');
                   break;
                case Opcode.LoadFG3:
                   skipPadding(reader, 4);
@@ -298,7 +298,7 @@ export function parseInstructions(params: Params): Instruction[] {
                case Opcode.StartAnim:
                case Opcode.CloseAnim:
                   instruction.expressions = readExpressions(reader, 'animId');
-                  instruction.expressions[0].mapArgument(curByteCode, 0, 'animId');
+                  // instruction.expressions[0].mapArgument(curByteCode, 0, 'animId');
                   break;
                case Opcode.MarkLocationId:
                   instruction.expressions = readExpressions(reader, 'a1');
@@ -364,7 +364,7 @@ export function parseInstructions(params: Params): Instruction[] {
                   break;
                case Opcode.SetDialogColor:
                   instruction.expressions = readExpressions(reader, 'colorCode');
-                  instruction.expressions[0].mapArgument(curByteCode, 0, 'colorCode');
+                  // instruction.expressions[0].mapArgument(curByteCode, 0, 'colorCode');
                   break;
                default:
                   throw Error(`Unknown opcode: 0x${curByteCode.toString(16)}.`);
@@ -375,6 +375,16 @@ export function parseInstructions(params: Params): Instruction[] {
          instruction.position = curOpcodePos;
          instruction.bytecodes = reader.buffer.subarray(curRelOpcodePos, reader.pos);
          instruction.labeled = labelSet.has(instruction.position);
+
+         if (curOpcodeType === InstructionType.Flow) {
+            for (let i = 0; i < instruction.expressions.length; i++)
+               instruction.expressions[i].mapFlowArgument(curByteCode as never, i);
+         }
+         else if (curOpcodeType === InstructionType.Opcode) {
+            for (let i = 0; i < instruction.expressions.length; i++)
+               instruction.expressions[i].mapArgument(curByteCode as never, i);
+         }
+
          instructions.push(instruction);
 
          curOpcodeType = -1;

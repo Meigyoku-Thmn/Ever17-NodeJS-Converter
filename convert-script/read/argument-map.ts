@@ -1,4 +1,4 @@
-import { FlowOpcode, Opcode } from './opcode';
+import { FlowOpcode, Opcode } from '../opcode';
 
 type PropValueOf<T> = T[keyof T];
 type ArgumentValue = Record<number, string>;

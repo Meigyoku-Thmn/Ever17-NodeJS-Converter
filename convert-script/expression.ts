@@ -1,6 +1,6 @@
 import { addContext } from '../utils/error';
 import { FlowOpcode, Opcode } from './opcode';
-import { FLOW_OPCODE_ARGUMENT_MAP, OPCODE_ARGUMENT_MAP } from './argument-map';
+import { FLOW_OPCODE_ARGUMENT_MAP, OPCODE_ARGUMENT_MAP } from './read/argument-map';
 
 export const enum ExpressionType {
    Operator, Const, Config, RGBA, VariableRef, VariableRef2, FunctionCall,
@@ -77,33 +77,27 @@ export class Expression {
       }
    }
 
-   mapArgument(opcode: Opcode, ordinal: number, exprName?: string): Expression {
-      try {
-         if (this.type !== ExpressionType.Const)
-            throw Error('Only number expression can be used to map argument.');
-         if (typeof (this.value) !== 'number')
-            throw Error('Only number expression can be used to map argument.');
-         this.name = OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
-         return this;
-      } catch (err) {
-         if (exprName)
-            addContext(err, ` at exprName '${exprName}'`);
-         throw err;
-      }
+   mapArgument(opcode: Opcode, ordinal: number): Expression {
+      if (this.type !== ExpressionType.Const)
+         return;
+
+      if (typeof (this.value) !== 'number')
+         return;
+
+      this.name = OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
+
+      return this;
    }
 
-   mapFlowArgument(opcode: FlowOpcode, ordinal: number, exprName?: string): Expression {
-      try {
-         if (this.type !== ExpressionType.Const)
-            throw Error('Only number expression can be used to map argument.');
-         if (typeof (this.value) !== 'number')
-            throw Error('Only number expression can be used to map argument.');
-         this.name = FLOW_OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
+   mapFlowArgument(opcode: FlowOpcode, ordinal: number): Expression {
+      if (this.type !== ExpressionType.Const)
          return this;
-      } catch (err) {
-         if (exprName)
-            addContext(err, ` at exprName '${exprName}'`);
-         throw err;
-      }
+
+      if (typeof (this.value) !== 'number')
+         return this;
+
+      this.name = FLOW_OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
+
+      return this;
    }
 }
