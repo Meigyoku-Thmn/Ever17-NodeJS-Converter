@@ -3,9 +3,9 @@ The file format of all [script](https://en.wikipedia.org/wiki/Scripting_language
 
 This is a fairly complicated format. It specifies pretty much the entire content of Ever17, even the behavior of menu screens.
 
-In short, the visual novel engine of Ever17 is essentially a [virtual machine](https://en.wikipedia.org/wiki/Virtual_machine), similar to the [Javascript virtual machines](https://en.wikipedia.org/wiki/JavaScript_engine) in every web browsers, but compared to them, this visual novel engine uses very few [opcodes](https://en.wikipedia.org/wiki/Opcode). The engine parses opcodes in script files, then reacts accordingly.
+In short, the visual novel engine of Ever17 is essentially a [virtual machine](https://en.wikipedia.org/wiki/Virtual_machine), similar to the [Javascript virtual machines](https://en.wikipedia.org/wiki/JavaScript_engine) in every web browsers, but compared to them, this visual novel engine uses very few [instruction](https://en.wikipedia.org/wiki/Instruction_set_architecture). The engine parses instructions in script files, then reacts accordingly.
 
-An opcode, with or without arguments, is corresponding to an [instruction](https://en.wikipedia.org/wiki/Instruction_set_architecture). The engine executes instructions.
+An instruction is the composition of an [opcode](https://en.wikipedia.org/wiki/Opcode) and/or several arguments.
 
 For example, a script file can have instructions like this (pseudocode as example, not the actual code in the game):
 
@@ -32,13 +32,15 @@ The engine can parse these instructions and does exactly:
 
 Pretty much a kind of [coroutine](https://en.wikipedia.org/wiki/Coroutine).
 
+Because opcode is the most important aspect of an instruction, the word "opcode" in this documetation will refer to the whole instruction unless otherwise stated.
+
 There are 4 sets of opcodes: the meta opcodes, the flow opcodes, the command opcodes, and the textual opcodes.
 
 The textual opcodes together make subroutines that the meta opcodes can call into.
 
 This page will document about how opcodes/instructions are stored in this file format, and how this file format is supposed to be read.
 
-Opcodes and how they works are documented separately in [SC3.Opcode.md](./SC3.Opcode.md) and [SC3.TextualOpcode.md](./SC3.TextualOpcode.md).
+Opcodes and how they works are documented separately in [SC3.MainInstructions.md](./SC3.MainInstructions.md).
 
 In this file, if I mention "main opcodes", I means the meta opcodes, the flow opcodes and the command opcodes together.
 
@@ -120,7 +122,7 @@ When you load a save, the game will resume the execution at a position last time
 
 This game has 4 sets of opcode: the **meta opcodes**, the **flow opcodes**, the **command opcodes** and the **textual opcodes**.
 
-* The **meta opcodes** are the prefixes of the 3 remaining opcode kind, also has an opcode that calls into textual subroutine;
+* The **meta opcodes** are the prefixes of the 3 remaining opcode kind, also has an opcode that calls into textual subroutine, and an opcode that sets variables;
 * The **flow opcodes** control the flow of script (branch, loop, call), as well as control the state of the game engine;
 * The **command opcodes** control almost everything visually except text box displaying;
 * The **textual opcodes** control how text is displayed, play associated voice clip,... (anything related to displaying on text box).
