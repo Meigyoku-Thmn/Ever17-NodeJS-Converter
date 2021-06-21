@@ -172,23 +172,22 @@ export function readExpressions(reader: BufferTraverser, exprName: string): Expr
                   `Expected a const expression after random function call, get type 0x${makeHexPad2(varExpr.type)}.`);
             const kind = <number>varExpr.value >>> 8;
             const name = <number>varExpr.value & 0xFF;
-            let fullName: string;
             if (kind === 0x0)
-               fullName = 'dim_';
+               expr.name = 'dim_';
             else if (kind === 0x2)
-               fullName = 'eff_';
+               expr.name = 'eff_';
             else if (kind === 0x3)
-               fullName = 'sys_';
+               expr.name = 'sys_';
             else if (kind === 0x4) {
                if (name > 0 && name <= 0x1f)
-                  fullName = 'g_';
+                  expr.name = 'g_';
                else
-                  fullName = 'l_';
+                  expr.name = 'l_';
             } else {
                throw Error(`Invalid variable kind: 0x${kind.toString(16)}.`);
             }
-            fullName += makeHexPad2(name);
-            expr.name = VARIABLE_MAP[fullName] ?? fullName;
+            expr.name += makeHexPad2(name);
+            expr.name = VARIABLE_MAP[expr.name] ?? expr.name;
          }
          else if (expr.type === ExpressionType.VariableRef2) {
             const varExpr = resultExpressions.splice(i + 1, 1)[0];
@@ -196,6 +195,7 @@ export function readExpressions(reader: BufferTraverser, exprName: string): Expr
                throw Error(
                   `Expected a const expression after random function call, get type 0x${makeHexPad2(varExpr.type)}.`);
             expr.name = `m_${makeHexPad2(varExpr.value as number)}`;
+            expr.name = VARIABLE_MAP[expr.name] ?? expr.name;
          }
       }
 

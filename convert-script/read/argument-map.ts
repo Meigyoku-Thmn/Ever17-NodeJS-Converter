@@ -1,7 +1,7 @@
 import { FlowOpcode, Opcode } from '../opcode';
 
 type PropValueOf<T> = T[keyof T];
-type ArgumentValue = Record<number, string>;
+type ArgumentValue = Record<number | string, string>;
 type ArgumentConfig = Record<number, ArgumentValue>;
 type OpcodeStatementName = PropValueOf<typeof Opcode>;
 type OpcodeArgumentMap = Partial<Record<OpcodeStatementName, ArgumentConfig>>;
@@ -25,17 +25,23 @@ export const FLOW_OPCODE_ARGUMENT_MAP: FlowOpcodeArgumentMap = {
    },
    [FlowOpcode.TurnFlagOn]: {
       0: {
-         256: 'NO_GAME_SAVE',
+         256: 'CANNOT_SAVE_GAME',
       },
    },
    [FlowOpcode.TurnFlagOff]: {
       0: {
-         256: 'NO_GAME_SAVE',
+         256: 'CANNOT_SAVE_GAME',
       },
    }
 };
 
 export const OPCODE_ARGUMENT_MAP: OpcodeArgumentMap = {
+   [Opcode.SetMovieRect]: {
+      0: {
+         0: 'MIRROR',
+         1: 'NORMAL',
+      },
+   },
    [Opcode.RemoveFG3]: {
       0: {
          1: '1 0 0',
@@ -49,7 +55,7 @@ export const OPCODE_ARGUMENT_MAP: OpcodeArgumentMap = {
       1: {
          0: 'STATIC',
          3: 'FADE_OUT',
-      }
+      },
    },
    [Opcode.StartAnim]: {
       0: {

@@ -19,6 +19,7 @@ export const VARIABLE_MAP = {
    g_18: 'g_sara_bd_cleared',
    g_1a: 'g_coco_route_unlock',
    g_1b: 'g_kid_bd_cleared',
+   g_1d: 'g_can_unlock_the_final_image',
 
    l_24: 'coco_route_unlocked',
    l_25: 'yuu_ep_cleared',
@@ -76,7 +77,7 @@ export const VARIABLE_MAP = {
    l_ef: 'went_with_sara_in_3rd_day',
    l_f0: 'know_sora_is_an_ai',
    l_f1: 'is_coco_route',
-   l_f2: 'sc2f_cleared',
+   l_f2: 'coco_point_is_low',
 
    sys_f1: 's_shortcut_available',
    sys_f2: 's_jukebox_available',
@@ -94,6 +95,8 @@ export const VARIABLE_MAP = {
    eff_4a: 'map_comment_index_2',
 
    l_fa: 'scene_title',
+
+   m_07: 'movie_still_playing',
 } as const;
 
 (() => {
