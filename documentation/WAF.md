@@ -10,74 +10,86 @@ Reference:
 * https://www.iana.org/assignments/wave-avi-codec-registry/wave-avi-codec-registry.xhtml
 
 # Decode the WAF file format
-(C#) Prepare a Stream and the length (in bytes), then pass them to the ToWAV method, this returns a wav stream, not much a decoding process, the content is copied as-is.
+To decompress this type of record, use this algorithm with a record byte array passed to the `record` parameter.
+
+This is not much a decoding process, the content is copied as-is.
+
 ```csharp
-static readonly uint ExpectedMagic = Encoding.ASCII.GetBytes("WAF\0").ToUInt32();
-public static MemoryStream ToWAV(this Stream inp, long length = -1) {
-   var lastPos = inp.Position;
-   var inb = new BinaryReader(inp);
-   var magic = inb.ReadUInt32();
-   if (magic != ExpectedMagic) throw new IOException($"Unknown archive format (Magic code: {magic:x8})");
-   var paddingMagic = inb.ReadUInt16();
-   if (paddingMagic != 0) throw new IOException($"Unknown archive format (Magic code: {magic:x8})_\\00\\00");
+// C#
+using static System.Runtime.InteropServices.Marshal;
+static byte[] DecodeToWAV(byte[] record)
+{
+    var reader = new BinaryReader(new MemoryStream(record));
 
-   ushort codecId = 2; // MS ADPCM
-   var channelCount = inb.ReadUInt16();
-   var sampleRate = inb.ReadUInt32();
-   var byteRate = inb.ReadUInt32();
-   var blockAlign = inb.ReadUInt16();
-   var bitsPerSample = inb.ReadUInt16();
-   var extraCodecHeaders = inb.ReadBytes(32);
-   var samplesSize = inb.ReadUInt32();
-   var samples = inb.ReadBytes((int)samplesSize);
+    var magic = Encoding.ASCII.GetString(reader.ReadBytes(4));
+    if (magic != "WAF\0")
+        throw new IOException($"Unknown archive format (Magic code: {magic:x8})");
 
-   if (length > -1 && inp.Position - lastPos > length) throw new IndexOutOfRangeException("");
+    var paddingMagic = reader.ReadUInt16();
+    if (paddingMagic != 0)
+        throw new IOException($"Expected 2 zero-bytes after magic code.");
 
-   var riffMagic = Encoding.ASCII.GetBytes("RIFF").ToUInt32();
-   var riffSize = (uint)0;
-   var waveMagic = Encoding.ASCII.GetBytes("WAVE").ToUInt32();
-   var fmt_Magic = Encoding.ASCII.GetBytes("fmt ").ToUInt32();
-   var dataMagic = Encoding.ASCII.GetBytes("data").ToUInt32();
-   var smplMagic = Encoding.ASCII.GetBytes("smpl").ToUInt32();
+    ushort codecId = 2; // MS ADPCM
+    var channelCount = reader.ReadUInt16();
+    var sampleRate = reader.ReadUInt32();
+    var byteRate = reader.ReadUInt32();
+    var blockAlign = reader.ReadUInt16();
+    var bitsPerSample = reader.ReadUInt16();
+    var extraCodecHeaders = reader.ReadBytes(32);
+    var samplesSize = reader.ReadUInt32();
+    var samples = reader.ReadBytes((int)samplesSize);
 
-   var outLen = riffMagic.Size() +
-      riffSize.Size() +
-      waveMagic.Size() +
-      fmt_Magic.Size() +
-      extraCodecHeaders.Length.Size() +
-      codecId.Size() +
-      channelCount.Size() +
-      sampleRate.Size() +
-      byteRate.Size() +
-      blockAlign.Size() +
-      bitsPerSample.Size() +
-      ((short)extraCodecHeaders.Length).Size() +
-      extraCodecHeaders.Length +
-      dataMagic.Size() +
-      samples.Length.Size() +
-      samples.Length;
-   var outB = new BinaryWriter(new MemoryStream(new byte[outLen], 0, outLen, true, true));
-   riffSize = (uint)(outB.BaseStream.Length - riffMagic.Size() - riffSize.Size());
+    var riffMagic = Encoding.ASCII.GetBytes("RIFF");
+    var riffSize = (uint)0;
+    var waveMagic = Encoding.ASCII.GetBytes("WAVE");
+    var fmt_Magic = Encoding.ASCII.GetBytes("fmt ");
+    var dataMagic = Encoding.ASCII.GetBytes("data");
 
-   outB.Write(riffMagic);
-   outB.Write(riffSize);
-   outB.Write(waveMagic);
-   outB.Write(fmt_Magic);
-   outB.Write(18 + extraCodecHeaders.Length);
-   outB.Write(codecId);
-   outB.Write(channelCount);
-   outB.Write(sampleRate);
-   outB.Write(byteRate);
-   outB.Write(blockAlign);
-   outB.Write(bitsPerSample);
-   outB.Write((ushort)extraCodecHeaders.Length);
-   outB.Write(extraCodecHeaders);
-   outB.Write(dataMagic);
-   outB.Write(samples.Length);
-   outB.Write(samples);
+    var outputLen = riffMagic.Length +
+       SizeOf(riffSize) +
+       waveMagic.Length +
+       fmt_Magic.Length +
+       SizeOf(extraCodecHeaders.Length) +
+       SizeOf(codecId) +
+       SizeOf(channelCount) +
+       SizeOf(sampleRate) +
+       SizeOf(byteRate) +
+       SizeOf(blockAlign) +
+       SizeOf(bitsPerSample) +
+       SizeOf((short)extraCodecHeaders.Length) +
+       extraCodecHeaders.Length +
+       dataMagic.Length +
+       SizeOf(samples.Length) +
+       samples.Length;
 
-   var outStream = outB.BaseStream as MemoryStream;
-   outStream.Position = 0;
-   return outStream;
+    var outputStream = new MemoryStream(
+        buffer: new byte[outputLen],
+        index: 0,
+        count: outputLen,
+        writable: true,
+        publiclyVisible: true
+    );
+    var writer = new BinaryWriter(outputStream);
+
+    riffSize = (uint)(outputLen - riffMagic.Length - SizeOf(riffSize));
+
+    writer.Write(riffMagic);
+    writer.Write(riffSize);
+    writer.Write(waveMagic);
+    writer.Write(fmt_Magic);
+    writer.Write(18 + extraCodecHeaders.Length);
+    writer.Write(codecId);
+    writer.Write(channelCount);
+    writer.Write(sampleRate);
+    writer.Write(byteRate);
+    writer.Write(blockAlign);
+    writer.Write(bitsPerSample);
+    writer.Write((ushort)extraCodecHeaders.Length);
+    writer.Write(extraCodecHeaders);
+    writer.Write(dataMagic);
+    writer.Write(samples.Length);
+    writer.Write(samples);
+
+    return outputStream.GetBuffer();
 }
 ```
