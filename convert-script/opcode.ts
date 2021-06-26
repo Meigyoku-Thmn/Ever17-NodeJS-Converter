@@ -11,7 +11,7 @@ export function MetaOpcodeName(value: MetaOpcode): string {
 }
 
 export const enum FlowOpcode {
-   // Mark the end of main opcode section
+   // Mark the end of main instruction section
    End = 0x00,
    Delay = 0x05,
    Suspend = 0x06,

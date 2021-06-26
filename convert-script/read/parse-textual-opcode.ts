@@ -148,10 +148,10 @@ export function parseTextualInstructions(bytecodes: Buffer, pos: number): Textua
                   case '⑤': // CIRCLED DIGIT FIVE
                      jpChar = '⭐';
                      break;
+                  // German character
                   case '⑩': // CIRCLED NUMBER TEN
                      jpChar = 'ä';
                      break;
-                  // German character
                   case '⑪': // CIRCLED NUMBER ELEVEN
                      jpChar = 'ö';
                      break;
