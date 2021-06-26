@@ -6,9 +6,9 @@ The anatomy is like this:
 <Meta Opcode>[Opcode][Arguments]
 ```
 
-* Meta Opcode: a byte corresponding to a meta opcode;
-* Opcode: a byte corresponding to a flow opcode or a command opcode;
-* Arguments: for meta opcode or for "opcode".
+* Meta Opcode: a byte corresponding to a meta instruction;
+* Opcode: a byte corresponding to a flow instruction or a command instruction;
+* Arguments: for meta instruction or for flow/command instruction.
 
 A script interpreter is supposed to read the meta opcode, and base on that, figure out what kind of data/opcode after that.
 
@@ -20,19 +20,32 @@ For example, let's consider the following sequence of bytes (hex):
 
 Analyze it and we have:
 
-* Meta Opcode: `10` → following it is a command opcode;
-* Command Opcode:  `46` → this is the "SetDialogColor" opcode that take one argument;
+* Meta Opcode: `10` → following it is a command instruction;
+* Command Opcode:  `46` → this is the "SetDialogColor" instruction that take one argument;
 * Argument: `82 00 00` → represents the number value 2;
 
 # The anatomy of a textual instruction
 
-# The anatomy of an expression
+```
+<Opcode>[Arguments]
+```
 
-Many number arguments, variable assigment and boolean arguments in the script are represented by "expression".
+* Opcode: a byte corresponding to a textual instruction;
+* Arguments: depend on the textual instruction.
 
-A complete expression is composed from one or many small expressions chaining together.
+If opcode is not corresponding to any textual instruction, then it's not a textual instruction but the begining of a text stream.
 
-The anatomy of a complete expression in the case of a single expression is:
+The end byte of a text stream has to be a valid textual opcode.
+
+The encoding of a text stream is [Code Page 932](https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)) even in the English version of Ever17.
+
+# The anatomy of an expression chain
+
+Many number arguments, variable assigment and boolean arguments in the script are represented by "expression chain".
+
+An expression chain is composed from one or many small expressions chaining together.
+
+The anatomy of an expression chain in the case of a single expression is:
 
 ```
 <Expression><Trash byte><00>
@@ -44,7 +57,7 @@ Or in the case of many expressions chaining together:
 <Expression><Trash byte><Expression><Trash byte>...<Expression><Trash byte><00>
 ```
 
-To read a complete expression, one can follow this pseudo-code:
+To read an expression chain, one can follow this pseudo-code:
 
 1. Scan an expression;
 2. Skip a trash byte;
@@ -59,8 +72,8 @@ fe 28 [0a] a4 b0 [14] 14 [00] 85 [00] 00
 
 The bytes inside square brackets are considered "trash byte", analyze this and we have:
 
-* Meta Opcode: `fe` → variable operation meta opcode;
-* Expression: a chain of expressions:
+* Meta Opcode: `fe` → variable operation meta instruction;
+* A chain of expressions:
   * `28 [0a]`: get a variable reference based on the next value address (**ref**);
   * `a4 b0 [14]`: a number value expression representing the number **0x4b0**;
   * `14 [00]`: an operator expression representing an assignment operator (**=**);
@@ -84,7 +97,7 @@ var_op: ref(0x4b0) = 5
 
 ## Function call
 
-# Meta Opcodes
+# Meta Instructions
 
 ## Flow control (`0x00`)
 
@@ -94,7 +107,7 @@ var_op: ref(0x4b0) = 5
 
 ## Textual routine call (`0xfe`)
 
-# Flow Opcodes
+# Flow Instructions
 
 ## End (`0x00`)
 ## Delay (`0x05`)
@@ -109,7 +122,7 @@ var_op: ref(0x4b0) = 5
 ## Switch (`0x26`)
 ## TurnFlag25On (`0x28`)
 
-# Command Opcodes
+# Command Instructions
 
 ## ToFile (`0x01`)
 ## PlayBGM (`0x03`)
@@ -150,7 +163,7 @@ var_op: ref(0x4b0) = 5
 ## OverlayMono (`0x45`)
 ## SetDialogColor (`0x46`)
 
-# Textual Opcodes
+# Textual Instructions
 
 ## End (`0x00`)
 ## NewLine (`0x01`)
@@ -164,3 +177,6 @@ var_op: ref(0x4b0) = 5
 ## Mark (`0x0e`)
 ## Style (`0x10`)
 ## Big (`0x11`)
+
+# Text stream fallback cases
+
