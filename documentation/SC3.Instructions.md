@@ -252,7 +252,7 @@ Using this ordinal to get the corresponding routine position in the **Textual sc
 
 ## End (`0x00`)
 
-Marks the end of main instruction section.
+Marks the end of main instruction section in a script file.
 
 ## Delay (`0x05`)
 
@@ -261,10 +261,15 @@ Spends some graphical frames doing nothing.
 Structure:
 
 ```
-05 <expression chain>
+05 <Expression chain>
 ```
 
 Expression chain contains only one number expression: `nFrame` to wait.
+
+Example:
+
+* `05 {a0 30 00 00}`: delay for 48 frames.
+* `05 {83 00 00}`: delay for 3 frames.
 
 ## Suspend (`0x06`)
 
@@ -272,7 +277,7 @@ Stops the main script execution, this marks the end of a game session.
 
 ## Goto (`0x07`)
 
-Jump to a main instruction specified by an ordinal.
+Jumps to a main instruction specified by an ordinal.
 
 Structure:
 
@@ -285,20 +290,167 @@ Structure:
 Using this `ordinal` to get the corresponding instruction position in the **Main script index table** to know where to jump to.
 
 ## GotoIf (`0x0a`)
+
+Jumps to a main instruction specified by an ordinal if expression chain is considered `TRUE`.
+
+Structure:
+
+```
+0D <Mode> <Expression chain> <2-byte: Ordinal>
+```
+
+* Mode:
+  * If `0` then expression chain's result is compared to `FALSE`
+  * If `1` then expression chain's result is compared to `TRUE`
+* Expression chain: is evaluated to `TRUE` or `FALSE`
+* Ordinal: use this to get the corresponding instruction position in the **Main script index table** to know where to jump to.
+
 ## Call (`0x0d`)
+
+Calls a routine in a script stack specified by an ordinal.
+
+When you start the game, it calls into `startup.scr`, then into `system.scr`, then into a game script. That makes a "script stack" like this (growing downward):
+
+0. `startup.scr`
+1. `system.scr`
+2. `<gamescript>.scr`
+
+This instruction allows the game to call into a routine defined in `startup.scr` or `system.scr`. 
+
+Structure:
+
+```
+0D <Expression chain> <2-byte: Ordinal>
+```
+
+* Expression chain:
+  * If value is `0` then the called routine is in `startup.scr`
+  * If value is `1` then the called routine is in `system.scr`
+* Ordinal: corresponding to a routine in the selected `*.scr` file above.
+
 ## TurnFlagOn (`0x12`)
+
+Turns on a system flag.
+
+Structure:
+
+```
+12 <Expression chain>
+```
+
+* Expression chain: evaluated to the flag id.
+
 ## TurnFlagOff (`0x13`)
+
+Turns of a system flag.
+
+Structure:
+
+```
+13 <Expression chain>
+```
+
+* Expression chain: evaluated to the flag id.
+
 ## GotoIfFlag (`0x15`)
+
+Jumps to a main instruction specified by an ordinal if a game flag is considered `TRUE`.
+
+Structure:
+
+```
+15 <Left operand> <Expression chain: Flag id> <Expression chain: Slot> <Ordinal>
+```
+
+* Left operand: the left operand in the comparison
+* Flag id: id of a game flag
+* Slot: the slot that contains the selected game flag
+* Ordinal: use this to get the corresponding instruction position in the **Main script index table** to know where to jump to.
+
+The selected game flag is considered `TRUE` if it equals to the left operand.
+
 ## TurnMode (`0x19`)
+
+Set a state for a movie-related mode in the game.
+
+Structure:
+
+```
+19 <Expression chain: Mode id> <Expression chain: State id>
+```
+
+* Mode id: the movie-related mode id
+* State id: represents the state to set to the selected mode
+
 ## Switch (`0x26`)
+
+A [switch statement](https://en.wikipedia.org/wiki/Switch_statement).
+
+Structure:
+
+```
+26 <Expression chain: Control value>
+00 27 <Expression chain: Case> <2-byte: Ordinal>
+...
+```
+
+* Control value: the value that will be compared to **cases**
+* Case: If `control value` equals to a case, then the execution will jump to the instruction specified by its' associated ordinal
+* Ordinal: use this to get the corresponding instruction position in the **Main script index table** to know where to jump to.
+
+A switch statement can be followed by many cases, the interpreter has to keep scanning unill it doesn't see anymore case (begins with `00 27`).
+
+Most of the time, control value is an variable.
+
 ## TurnFlag25On (`0x28`)
+
+Same behavior as **TurnFlagOn** but for flag id `0x28`.
 
 # Command Instructions
 
 ## ToFile (`0x01`)
+
+Jumps to a script file.
+
+Structure:
+
+```
+01 <Null-terminated string: Script name>
+```
+
+* Script name: the name of script file
+
+Example:
+
+* `01 {54 5f 31 41 00}`: Jump to `T_1A`
+* `01 {53 43 31 42 00}`: Jump to `SC1B`
+
 ## PlayBGM (`0x03`)
+
+Plays a BGM with a specified volume.
+
+Structure:
+
+```
+03 <Expression chain: BGM ordinal> <Expression chain: Volume>
+```
+
+* BGM ordinal: corresponding to a bgm file name: `bgm<ordinal>` in which ordinal is converted to 2-char string.
+* Volume: bgm volume.
+
+Example:
+
+* `03 {81 00 00} {a0 64 00 00}`: Play `bgm01` with volume `100`
+* `03 {8f 00 00} {a0 61 00 00}`: Play `bgm15` with volume `97`
+
 ## StopBGM (`0x04`)
+
+Stops the current playing BGM.
+
 ## PlaySFX (`0x05`)
+
+
+
 ## StopSFX (`0x06`)
 ## WaitSFX (`0x07`)
 ## PlayVoice (`0x08`)
