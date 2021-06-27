@@ -81,10 +81,7 @@ export class Expression {
       if (this.type !== ExpressionType.Const)
          return;
 
-      if (typeof (this.value) !== 'number')
-         return;
-
-      this.name = OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
+      this.name = OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value.toString()] ?? this.name;
 
       return this;
    }
@@ -93,10 +90,7 @@ export class Expression {
       if (this.type !== ExpressionType.Const)
          return this;
 
-      if (typeof (this.value) !== 'number')
-         return this;
-
-      this.name = FLOW_OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value] ?? this.name;
+      this.name = FLOW_OPCODE_ARGUMENT_MAP[opcode]?.[ordinal]?.[this.value.toString()] ?? this.name;
 
       return this;
    }

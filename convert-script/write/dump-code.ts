@@ -18,7 +18,12 @@ function generateExprStr(exprs: Expression[], separator = ' '): string {
             exprStrArr.push(OPERATOR_MAP[expr.operator]);
             break;
          case ExpressionType.Const:
-            exprStrArr.push(expr.name ?? expr.value.toString());
+            if (expr.name != null)
+               exprStrArr.push(expr.name);
+            else if (Array.isArray(expr.value))
+               exprStrArr.push(`(${expr.value})`);
+            else
+               exprStrArr.push(`${expr.value}`);
             break;
          case ExpressionType.FunctionCall:
             exprStrArr.push(`${expr.name}(${generateExprStr(expr.args, ',')})`);
@@ -148,8 +153,8 @@ export function dumpCode(instructions: Instruction[], outputPath: string): void 
                break;
             case FlowOpcode.GotoIfFlag:
                writeString(hdl, 'if_flag ');
-               writeString(hdl, `(${instruction.expressions[1].value},${instruction.expressions[2].value})`);
-               writeString(hdl, ` = ${instruction.expressions[0].value} `);
+               writeString(hdl, generateExprStr([instruction.expressions[1]]));
+               writeString(hdl, ` = ${generateExprStr([instruction.expressions[0]])} `);
                writeString(hdl, `goto ${makeHexPad16(instruction.switches[0][1].target)}`);
                break;
             default:

@@ -4,7 +4,7 @@ import { addContext } from '../../utils/error';
 import { Expression, ExpressionType, Operator } from '../../convert-script/expression';
 import { VARIABLE_MAP } from './variable_map';
 
-function createRawExpr(value: number | string): Expression {
+export function createRawExpr(value: number | string | number[]): Expression {
    return new Expression({ type: ExpressionType.Const, value });
 }
 

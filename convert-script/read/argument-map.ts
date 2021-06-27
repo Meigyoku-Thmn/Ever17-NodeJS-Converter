@@ -32,6 +32,15 @@ export const FLOW_OPCODE_ARGUMENT_MAP: FlowOpcodeArgumentMap = {
       0: {
          256: 'CANNOT_SAVE_GAME',
       },
+   },
+   [FlowOpcode.GotoIfFlag]: {
+      0: {
+         0: 'FALSE',
+         1: 'TRUE',
+      },
+      1: {
+         '32,1': 'MOVIE_SKIPPED',
+      },
    }
 };
 
@@ -40,6 +49,12 @@ export const OPCODE_ARGUMENT_MAP: OpcodeArgumentMap = {
       0: {
          0: 'MIRROR',
          1: 'NORMAL',
+      },
+   },
+   [Opcode.RemoveBG]: {
+      0: {
+         0: 'BLACK_IMAGE',
+         1: 'WHITE_IMAGE',
       },
    },
    [Opcode.RemoveFG3]: {

@@ -91,7 +91,7 @@ var_op: ref(0x4b0) = 5
 
 ### 0x8X
 
-Structure:
+**Structure:**
 
 ```
 8x
@@ -99,9 +99,14 @@ Structure:
 
 Value: `x`
 
+**Example:**
+
+* `81`: value = `1`
+* `8A`: value = `0xA` = `10`
+
 ### 0xAX
 
-Structure:
+**Structure:**
 
 ```
 Ax yy
@@ -109,9 +114,14 @@ Ax yy
 
 Value: `(x << 8) + yy`
 
+**Example:**
+
+* `A2 4F`: value = `0x24F` = `591`
+* `AB 14`: value = `0xB14` = `2836`
+
 ### 0xBX (negative number)
 
-Structure:
+**Structure:**
 
 ```
 Bx yy
@@ -119,9 +129,14 @@ Bx yy
 
 Value: `((x << 8) + yy) | 0xFFFFF000`
 
+**Example:**
+
+* `BE 70`: value = `0xE70 | 0xFFFFF000` = `-400`
+* `BC 60`: value = `0xC60 | 0xFFFFF000` = `-928`
+
 ## Config value (`0xCX`)
 
-Structure:
+**Structure:**
 
 ```
 Cx yy zz
@@ -129,9 +144,14 @@ Cx yy zz
 
 Value: `(x, yy, zz)`
 
+**Example:**
+
+* `C0 {3D} {27}`: value = `(0x0, 0x3D, 0x27)`
+* `CC {00} {00}`: value = `(0xC, 0x00, 0x00)`
+
 ## RGBA value (`0xE0`)
 
-Structure:
+**Structure:**
 
 ```
 E0 rr gg bb aa
@@ -139,9 +159,14 @@ E0 rr gg bb aa
 
 Value: `(rr, gg, bb, aa)`
 
+**Example:**
+
+* `E0 {F0} {F0} {F0} {00}`: value = `rgba(0xF0, 0xF0, 0xF0, 0x00)` = `rgba(240, 240, 240, 0)`
+* `E0 {00} {00} {40} {00}`: value = `rgba(0x00, 0x00, 0x40, 0x00)` = `rgba(0, 0, 64, 0)`
+
 ## Operators (`0x1X`, `0x2X`)
 
-Structure:
+**Structure:**
 
 ```
 xx
@@ -149,14 +174,14 @@ xx
 
 Meaning of the value xx:
 
-* `0x14`: Assign
-* `0x17`: AddAssign
-* `0x0c`: Equal
-* `0x0d`: NotEqual
-* `0x0e`: LessThanOrEqual
-* `0x0f`: GreaterThanOrEqual
-* `0x10`: LessThan
-* `0x11`: GreaterThan
+* `0x14`: Assign `:=`
+* `0x17`: AddAssign `+=`
+* `0x0c`: Equal `=`
+* `0x0d`: NotEqual `!=`
+* `0x0e`: LessThanOrEqual `<=`
+* `0x0f`: GreaterThanOrEqual `>=`
+* `0x10`: LessThan `<`
+* `0x11`: GreaterThan `>`
 
 ## Variable reference
 
@@ -166,7 +191,7 @@ This actually has 2 bytes, but the 2nd byte is constant across the script, so we
 
 Sessional and Global variable.
 
-Structure:
+**Structure:**
 
 ```
 2a
@@ -174,11 +199,16 @@ Structure:
 
 It's expected that the next expression of this is a number value that specifies the address of the variable.
 
+**Example:**
+
+* `28 [0A] {A4 b0 00 00}`: `ref(0x4B0)`
+* `28 [0A] {A4 b2 00 00}`: `ref(0x4B2)`
+
 ### Type 2 (`0x2d 0x0a`)
 
 Movie-state related variable.
 
-Structure:
+**Structure:**
 
 ```
 2d
@@ -186,11 +216,15 @@ Structure:
 
 It's expected that the next expression of this is a number value that specifies the address of the variable.
 
+**Example:**
+
+* `2D [0A] {87 00 00}`: `m_ref(7)`
+
 ## Random function call (`0x33`)
 
 This actually has 2 bytes, but the 2nd byte is constant across the script, so we can safety assume it as a trash byte.
 
-Structure:
+**Structure:**
 
 ```
 33
@@ -198,7 +232,12 @@ Structure:
 
 It's expected that the next expression of this is a number value that specifies the max value for the random function.
 
-The result is an integer number from 0 to max value.
+The result is an integer number from 0 to less than max value.
+
+**Example:**
+
+* `33 [0A] {87 00 00}`: `random(7)` ∈ `[0..7)`
+* `33 [0A] {83 00 00} `: `random(3)` ∈ `[0..3)`
 
 # Meta Instructions
 
@@ -206,7 +245,7 @@ The result is an integer number from 0 to max value.
 
 Marks a flow instruction.
 
-Structure:
+**Structure:**
 
 ```
 00 <Flow instruction>
@@ -216,7 +255,7 @@ Structure:
 
 Marks a command instruction.
 
-Structure:
+**Structure:**
 
 ```
 10 <Command instruction>
@@ -226,7 +265,7 @@ Structure:
 
 Marks an expression chain that evaluates an expression and assigns it to a variable.
 
-Structure:
+**Structure:**
 
 ```
 FF <Expression chain>
@@ -238,7 +277,7 @@ It's expected that the left of the expression chain specifies a variable, the mi
 
 Call into a textual routine using an ordinal.
 
-Structure:
+**Structure:**
 
 ```
 FE xx yy
@@ -258,7 +297,7 @@ Marks the end of main instruction section in a script file.
 
 Spends some graphical frames doing nothing.
 
-Structure:
+**Structure:**
 
 ```
 05 <Expression chain>
@@ -266,7 +305,7 @@ Structure:
 
 Expression chain contains only one number expression: `nFrame` to wait.
 
-Example:
+**Example:**
 
 * `05 {a0 30 00 00}`: delay for 48 frames.
 * `05 {83 00 00}`: delay for 3 frames.
@@ -279,31 +318,31 @@ Stops the main script execution, this marks the end of a game session.
 
 Jumps to a main instruction specified by an ordinal.
 
-Structure:
+**Structure:**
 
 ```
 07 xx yy
 ```
 
-* Ordinal: `xx + (yy << 8)`
+* **Ordinal:** `xx + (yy << 8)`
 
 Using this `ordinal` to get the corresponding instruction position in the **Main script index table** to know where to jump to.
 
 ## GotoIf (`0x0a`)
 
-Jumps to a main instruction specified by an ordinal if expression chain is considered `TRUE`.
+Jumps to a main instruction specified by an ordinal if comparison is considered `TRUE`.
 
-Structure:
+**Structure:**
 
 ```
 0D <Mode> <Expression chain> <2-byte: Ordinal>
 ```
 
-* Mode:
+* **Mode:**
   * If `0` then expression chain's result is compared to `FALSE`
   * If `1` then expression chain's result is compared to `TRUE`
-* Expression chain: is evaluated to `TRUE` or `FALSE`
-* Ordinal: use this to get the corresponding instruction position in the **Main script index table** to know where to jump to.
+* **Expression chain:** is evaluated to `TRUE` or `FALSE`
+* **Ordinal:** use this to get the corresponding instruction position in the **Main script index table** to know where to jump to.
 
 ## Call (`0x0d`)
 
@@ -317,22 +356,22 @@ When you start the game, it calls into `startup.scr`, then into `system.scr`, th
 
 This instruction allows the game to call into a routine defined in `startup.scr` or `system.scr`. 
 
-Structure:
+**Structure:**
 
 ```
 0D <Expression chain> <2-byte: Ordinal>
 ```
 
-* Expression chain:
+* **Expression chain:**
   * If value is `0` then the called routine is in `startup.scr`
   * If value is `1` then the called routine is in `system.scr`
-* Ordinal: corresponding to a routine in the selected `*.scr` file above.
+* **Ordinal:** corresponding to a routine in the selected `*.scr` file above.
 
 ## TurnFlagOn (`0x12`)
 
 Turns on a system flag.
 
-Structure:
+**Structure:**
 
 ```
 12 <Expression chain>
@@ -344,7 +383,7 @@ Structure:
 
 Turns of a system flag.
 
-Structure:
+**Structure:**
 
 ```
 13 <Expression chain>
@@ -356,7 +395,7 @@ Structure:
 
 Jumps to a main instruction specified by an ordinal if a game flag is considered `TRUE`.
 
-Structure:
+**Structure:**
 
 ```
 15 <Left operand> <Expression chain: Flag id> <Expression chain: Slot> <Ordinal>
@@ -373,7 +412,7 @@ The selected game flag is considered `TRUE` if it equals to the left operand.
 
 Set a state for a movie-related mode in the game.
 
-Structure:
+**Structure:**
 
 ```
 19 <Expression chain: Mode id> <Expression chain: State id>
@@ -386,7 +425,7 @@ Structure:
 
 A [switch statement](https://en.wikipedia.org/wiki/Switch_statement).
 
-Structure:
+**Structure:**
 
 ```
 26 <Expression chain: Control value>
@@ -412,7 +451,7 @@ Same behavior as **TurnFlagOn** but for flag id `0x28`.
 
 Jumps to a script file.
 
-Structure:
+**Structure:**
 
 ```
 01 <Null-terminated string: Script name>
@@ -420,7 +459,7 @@ Structure:
 
 * Script name: the name of script file
 
-Example:
+**Example:**
 
 * `01 {54 5f 31 41 00}`: Jump to `T_1A`
 * `01 {53 43 31 42 00}`: Jump to `SC1B`
@@ -429,7 +468,7 @@ Example:
 
 Plays a BGM with a specified volume.
 
-Structure:
+**Structure:**
 
 ```
 03 <Expression chain: BGM ordinal> <Expression chain: Volume>
@@ -438,7 +477,7 @@ Structure:
 * BGM ordinal: corresponding to a bgm file name: `bgm<ordinal>` in which ordinal is converted to 2-char string.
 * Volume: bgm volume.
 
-Example:
+**Example:**
 
 * `03 {81 00 00} {a0 64 00 00}`: Play `bgm01` with volume `100`
 * `03 {8f 00 00} {a0 61 00 00}`: Play `bgm15` with volume `97`
@@ -449,15 +488,87 @@ Stops the current playing BGM.
 
 ## PlaySFX (`0x05`)
 
+Plays a sound effect with a specified volume.
 
+**Structure:**
+
+```
+05 <Null-terminated string: Sound name> <Expression chain: No loop> <Expression chain: Volume>
+```
+
+* **Sound name:** the name of the sound effect
+* **No loop:** `0` or `1`, `1` means to explicitly play a sound effect without looping (this is useless all the time in the script)
+* **Volume:** sound volume
+
+The game has an internal configuration that specifies what sound file it has to loop and loop at what range.
 
 ## StopSFX (`0x06`)
+
+Stops the current playing sound effect.
+
 ## WaitSFX (`0x07`)
+
+Waits until the current sound effect ends.
+
 ## PlayVoice (`0x08`)
+
+Plays a voice.
+
+**Structure:**
+
+```
+08 <Null-terminated string: Voice name>
+```
+
+* **Voice name:** the name of voice file.
+
 ## WaitVoice (`0x09`)
+
+Waits until the current voice ends.
+
 ## LoadBG (`0x0c`)
+
+Loads a background image, clears every foreground images on the screen. You can specify a transition effect.
+
+**Structure:**
+
+```
+0c 00 00 00 00 <2-byte: Ordinal> <Expression chain: a1> <Expression chain: a2>
+```
+
+* **Ordinal:** use this to get the corresponding image name in the **Image index table**.
+* **a1:** Transition effect code 1
+* **a2:** Transition effect code 2
+
 ## RemoveBG (`0x0d`)
+
+Changes the current background image to a **black** or **white** image. You can specify a transition effect.
+
+**Structure:**
+
+```
+0d <Expression chain: Target image> <Expression chain: a1> <Expression chain: a2>
+```
+
+* **Target image:** `0` is black image, `1` is white image
+* **a1:** Transition effect code 1
+* **a2:** Transition effect code 2
+
 ## LoadFG (`0x0f`)
+
+Loads a foreground image into a foreground slot. You can specify a horizontal position and enable transition effect.
+
+**Structure:**
+
+```
+0f <Expr chain: FG Slot> 00 00 00 00 <2-byte: Ordinal> <Expr chain: HPos> <Expr chain: Mode>
+```
+
+* **FG Slot:** specifies the foreground slot to place the foreground image into, valid values are `1`, `2`,`4` and `8` (`8` is never used)
+* **Ordinal:** use this to get the corresponding image name in the **Image index table**.
+* **HPos:** the horizontal position for the specified foreground image, it has to be calculate like this: `800 * HPos / 640`
+* **Mode:** if it is **non-zero**, then use fade-in effect for the foreground image
+
 ## RemoveFG (`0x10`)
 ## LoadFG2 (`0x12`)
 ## RemoveFG3 (`0x13`)
@@ -501,9 +612,11 @@ Stops the current playing BGM.
 ## Style (`0x10`)
 ## Big (`0x11`)
 
+# Background image transition effects
+
 # Character mapping
 
-The interpreter can read characters from the text stream by using the right encoding. Some characters have to be mapped into emojis, or some other characters.
+The interpreter can read characters from the text stream following the right encoding. Some characters have to be mapped into emojis, or some other characters.
 
 ## All versions
 

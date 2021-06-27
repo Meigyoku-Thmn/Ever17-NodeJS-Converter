@@ -1,6 +1,6 @@
 /* eslint-disable no-inner-declarations */
 import { BufferTraverser } from '../../utils/buffer-wrapper';
-import { readCStringExpr, readExpressions, readRawByteExpr, readRawInt16Expr } from './read-expression';
+import { createRawExpr, readCStringExpr, readExpressions, readRawByteExpr, readRawInt16Expr } from './read-expression';
 import { FlowOpcode, FlowOpcodeName, MetaOpcode, MetaOpcodeName, Opcode, OpcodeName } from '../opcode';
 import { parseTextualInstructions } from './parse-textual-opcode';
 import { skipMarker, skipPadding } from './skip-padding';
@@ -131,8 +131,10 @@ export function parseInstructions(params: Params): Instruction[] {
                case FlowOpcode.GotoIfFlag:
                   instruction.expressions.push(
                      readRawByteExpr(reader, 'left operand'),
-                     ...readExpressions(reader, 'bit mask'),
-                     ...readExpressions(reader, 'mode'),
+                     createRawExpr([
+                        readExpressions(reader, 'bit mask')[0].value as number,
+                        readExpressions(reader, 'mode')[0].value as number,
+                     ]),
                   );
                   instruction.switches = [[
                      null, readRawInt16Expr(reader, 'jump target').mapOffset(labels, 'jump target')
@@ -167,7 +169,9 @@ export function parseInstructions(params: Params): Instruction[] {
                case Opcode.PlaySFX:
                   instruction.expressions.push(
                      readCStringExpr(reader, 'sfx name'),
-                     ...readExpressions(reader, 'unk'),
+                  );
+                  readExpressions(reader, 'don\'t loop'); // useless param
+                  instruction.expressions.push(
                      ...readExpressions(reader, 'sfx volume'),
                   );
                   break;
