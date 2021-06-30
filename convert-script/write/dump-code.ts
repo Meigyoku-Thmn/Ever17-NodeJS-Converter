@@ -164,46 +164,9 @@ export function dumpCode(instructions: Instruction[], outputPath: string): void 
          }
       }
       else if (instruction.type === InstructionType.Opcode) {
-         switch (instruction.code) {
-            case Opcode.SetFGOrder: {
-               writeString(hdl, OpcodeName(instruction.code as Opcode));
-               writeString(hdl, ' ');
-               const code = instruction.expressions.map(e => e.value as number).toString();
-               switch (code) {
-                  // every values used in script 
-                  case '0,1,2':
-                     writeString(hdl, '4 2 1');
-                     break;
-                  case '0,2,1':
-                     writeString(hdl, '2 4 1');
-                     break;
-                  case '1,0,2':
-                     writeString(hdl, '4 1 2');
-                     break;
-                  case '1,2,0':
-                     writeString(hdl, '1 4 2');
-                     break;
-                  case '2,0,1':
-                     writeString(hdl, '2 1 4');
-                     break;
-                  case '2,1,0':
-                     writeString(hdl, '1 2 4');
-                     break;
-                  case '0,1,255':
-                     writeString(hdl, '4 2 1');
-                     break;
-                  case '1,0,255':
-                     writeString(hdl, '4 1 2');
-                     break;
-               }
-               break;
-            }
-            default:
-               writeString(hdl, OpcodeName(instruction.code as Opcode));
-               if (instruction.expressions.length > 0)
-                  writeString(hdl, ` ${generateExprStr(instruction.expressions)}`);
-               break;
-         }
+         writeString(hdl, OpcodeName(instruction.code as Opcode));
+         if (instruction.expressions.length > 0)
+            writeString(hdl, ` ${generateExprStr(instruction.expressions)}`);
       }
       writeString(hdl, '\n');
    }

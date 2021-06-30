@@ -340,7 +340,7 @@ export function parseInstructions(params: Params): Instruction[] {
                      ...readExpressions(reader, 'hy'),
                   );
                   break;
-               case Opcode.TweenZoom:
+               case Opcode.ChangeBGCrop:
                   instruction.expressions.push(
                      ...readExpressions(reader, 'x'),
                      ...readExpressions(reader, 'y'),

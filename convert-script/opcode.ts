@@ -66,7 +66,7 @@ export const enum Opcode {
    SetMovieRect = 0x3B,
    PlayMovie = 0x3C,
    LoadBGCrop = 0x40,
-   TweenZoom = 0x41,
+   ChangeBGCrop = 0x41,
    SetVolume = 0x43,
    OverlayMono = 0x45,
    SetDialogColor = 0x46,

@@ -57,15 +57,59 @@ export const OPCODE_ARGUMENT_MAP: OpcodeArgumentMap = {
          1: 'WHITE_IMAGE',
       },
    },
+   [Opcode.LoadFG]: {
+      0: {
+         1: '0',
+         2: '1',
+         4: '2',
+      },
+      3: {
+         0: 'STATIC',
+         3: 'FADE_IN',
+      },
+   },
+   [Opcode.RemoveFG]: {
+      0: {
+         1: '0',
+         2: '1',
+         4: '2',
+      },
+      1: {
+         0: 'STATIC',
+         3: 'FADE_OUT',
+      },
+   },
+   [Opcode.LoadFG2]: {
+      0: {
+         1: '0',
+         2: '1',
+         4: '2',
+      },
+      1: {
+         1: '0',
+         2: '1',
+         4: '2',
+      },
+      6: {
+         0: 'STATIC',
+         3: 'FADE_IN',
+      },
+   },
+   [Opcode.LoadFG3]: {
+      6: {
+         0: 'STATIC',
+         3: 'FADE_IN',
+      },
+   },
    [Opcode.RemoveFG3]: {
       0: {
-         1: '1 0 0',
-         2: '2 0 0',
-         3: '1 2 0',
-         4: '4 0 0',
-         5: '1 4 0',
-         6: '2 4 0',
-         7: '1 2 4',
+         0b0_0001: '(0)',
+         0b0_0010: '(1)',
+         0b0_0011: '(0,1)',
+         0b0_0100: '(2)',
+         0b0_0101: '(0,2)',
+         0b0_0110: '(1,2)',
+         0b0_0111: '(0,1,2)',
       },
       1: {
          0: 'STATIC',
@@ -110,16 +154,17 @@ export const OPCODE_ARGUMENT_MAP: OpcodeArgumentMap = {
       },
    },
    [Opcode.AffectFG]: {
-      0: {
-         0: '1',
-         1: '2',
-         2: '4',
-      },
       1: {
          8: 'TRANSPARENT',
          15: 'NORMAL',
          16: 'NORMAL',
          17: 'TORCH_ILLUMINATED',
+      },
+   },
+   [Opcode.OverlayMono]: {
+      1: {
+         0: 'BLACK',
+         1: 'WHITE',
       },
    },
 };
